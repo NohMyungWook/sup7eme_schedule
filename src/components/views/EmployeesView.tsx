@@ -10,6 +10,7 @@ import type {
 } from '../../domain/types';
 import { templateById } from '../../utils/schedule';
 import { StoreFilter } from '../common/StoreFilter';
+import { Dropdown } from '../common/Dropdown';
 
 type EmployeesViewProps = {
   employees: Employee[];
@@ -98,8 +99,8 @@ export function EmployeesView(props: EmployeesViewProps) {
               </div>
               {props.isManager ? (
                 <form className="base-shift-form profile-base-form" onSubmit={props.onBaseShiftAdd}>
-                  <label>요일<select value={baseShiftDraft.weekday} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, weekday: Number(event.target.value) }))}>{weekdays.map((weekday, index) => <option key={weekday} value={index}>{weekday}요일</option>)}</select></label>
-                  <label>근무 유형<select value={baseShiftDraft.templateId} onChange={(event) => props.onTemplateSelect(event.target.value)}>{props.templates.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}</select></label>
+                  <label>요일<Dropdown value={String(baseShiftDraft.weekday)} options={weekdays.map((weekday, index) => ({ value: String(index), label: `${weekday}요일` }))} onChange={(weekday) => props.setBaseShiftDraft((current) => ({ ...current, weekday: Number(weekday) }))} /></label>
+                  <label>근무 유형<Dropdown value={baseShiftDraft.templateId} options={props.templates.map((template) => ({ value: template.id, label: template.label }))} onChange={props.onTemplateSelect} /></label>
                   <label>시작 시간<input type="time" value={baseShiftDraft.startTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, startTime: event.target.value }))} required /></label>
                   <label>종료 시간<input type="time" value={baseShiftDraft.endTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, endTime: event.target.value }))} required /></label>
                   <button className="primary" type="submit">기본 근무 추가</button>
