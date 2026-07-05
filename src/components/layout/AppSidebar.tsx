@@ -1,31 +1,32 @@
-import type { ActiveView, Employee, Role } from '../../domain/types';
+import type { ActiveView, Role } from '../../domain/types';
 
 type AppSidebarProps = {
   activeView: ActiveView;
   role: Role;
-  storeEmployees: Employee[];
-  selectedEmployeeId?: string;
   onViewChange: (view: ActiveView) => void;
-  onEmployeeSelect: (employeeId: string) => void;
+  onClose: () => void;
   onLogout: () => void;
 };
 
 export function AppSidebar({
   activeView,
   role,
-  storeEmployees,
-  selectedEmployeeId,
   onViewChange,
-  onEmployeeSelect,
+  onClose,
   onLogout,
 }: AppSidebarProps) {
   const isManager = role === 'manager';
 
   return (
     <aside className="sidebar" aria-label="스케줄 관리 메뉴">
-      <div className="brand">
-        <span className="brand-mark">S</span>
-        <strong>KingMW</strong>
+      <div className="sidebar-heading">
+        <div className="brand">
+          <span className="brand-mark">S</span>
+          <strong>KingMW</strong>
+        </div>
+        <button className="sidebar-toggle" type="button" aria-label="사이드바 닫기" onClick={onClose}>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
+        </button>
       </div>
       <nav className="nav-list">
         {isManager ? <button type="button" className={activeView === 'dashboard' ? 'is-active' : undefined} onClick={() => onViewChange('dashboard')}>대시보드</button> : null}
@@ -38,27 +39,6 @@ export function AppSidebar({
           </>
         ) : null}
       </nav>
-      {activeView === 'schedule' && isManager ? (
-        <section className="employee-panel" aria-labelledby="employee-title">
-          <div className="panel-title"><h2 id="employee-title">현재 매장 직원</h2></div>
-          <div className="employee-list">
-            {storeEmployees.map((employee) => (
-              <article
-                className={`employee-card ${selectedEmployeeId === employee.id ? 'is-selected' : ''}`}
-                draggable
-                key={employee.id}
-                onClick={() => onEmployeeSelect(employee.id)}
-                onDragStart={(event) => event.dataTransfer.setData('application/x-kingmw-employee', employee.id)}
-              >
-                <span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span>
-                <div><strong>{employee.name}</strong><small>{employee.preference}</small></div>
-              </article>
-            ))}
-            {!storeEmployees.length ? <p className="empty-employees">직원 탭에서 이 매장 직원을 등록하세요.</p> : null}
-          </div>
-          <p className="drop-hint">직원 카드를 날짜 칸으로 드래그해서 근무를 추가</p>
-        </section>
-      ) : null}
       <section className="session-panel">
         <div><span>{isManager ? '매니저' : '직원'}</span><strong>{isManager ? 'admin' : 'redforce'}</strong></div>
         <button type="button" onClick={onLogout}>로그아웃</button>

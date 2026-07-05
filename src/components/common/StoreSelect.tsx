@@ -1,4 +1,5 @@
 import { stores } from '../../domain/data';
+import { Dropdown } from './Dropdown';
 
 type StoreSelectProps = {
   value: string;
@@ -8,16 +9,11 @@ type StoreSelectProps = {
 
 export function StoreSelect({ value, onChange, ariaLabel }: StoreSelectProps) {
   return (
-    <select
+    <Dropdown
       value={value}
-      aria-label={ariaLabel}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {stores.map((store) => (
-        <option key={store.id} value={store.id}>
-          {store.name}
-        </option>
-      ))}
-    </select>
+      options={stores.map((store) => ({ value: store.id, label: store.name }))}
+      ariaLabel={ariaLabel}
+      onChange={onChange}
+    />
   );
 }

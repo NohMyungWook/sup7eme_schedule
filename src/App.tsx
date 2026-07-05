@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { LoginPage } from './components/layout/LoginPage';
 import { DashboardView } from './components/views/DashboardView';
@@ -9,6 +10,9 @@ import { useScheduleController } from './hooks/useScheduleController';
 
 export default function App() {
   const app = useScheduleController();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    window.matchMedia('(min-width: 701px)').matches,
+  );
 
   if (!app.role) {
     return (
@@ -30,19 +34,35 @@ export default function App() {
   }
 
   return (
-    <main className="workspace">
+    <main
+      className={`workspace ${isSidebarOpen ? '' : 'is-sidebar-collapsed'} ${app.draggingShiftId ? 'is-shift-dragging' : ''}`}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('application/x-kingmw-shift')) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDrop={(event) => {
+        const shiftId = event.dataTransfer.getData('application/x-kingmw-shift');
+        if (shiftId) {
+          event.preventDefault();
+          app.removeShift(shiftId);
+        }
+      }}
+    >
       <AppSidebar
         activeView={app.activeView}
         role={app.role}
-        storeEmployees={app.storeEmployees}
-        selectedEmployeeId={app.scheduleSelectedEmployee?.id}
-        onViewChange={app.setActiveView}
-        onEmployeeSelect={(employeeId) => {
-          app.setSelectedEmployeeId(employeeId);
-          app.setDraft((current) => ({ ...current, employeeId }));
+        onViewChange={(view) => {
+          app.setActiveView(view);
+          if (window.matchMedia('(max-width: 700px)').matches) {
+            setIsSidebarOpen(false);
+          }
         }}
+        onClose={() => setIsSidebarOpen(false)}
         onLogout={app.logout}
       />
+      {isSidebarOpen ? <button className="sidebar-backdrop" type="button" aria-label="사이드바 닫기" onClick={() => setIsSidebarOpen(false)} /> : <button className="sidebar-open-button" type="button" aria-label="사이드바 열기" onClick={() => setIsSidebarOpen(true)}><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg></button>}
       <section
         className={`main-board ${
           app.activeView === 'dashboard'
@@ -139,19 +159,20 @@ export default function App() {
             storeEmployees={app.storeEmployees}
             visibleShifts={app.visibleShifts}
             templates={app.templates}
+            dragTemplates={app.dragTemplates}
+            pendingEmployeeDrop={app.pendingEmployeeDrop}
             selectedDate={app.selectedDate}
-            selectedNote={app.selectedNote}
-            noteDraft={app.noteDraft}
             draft={app.draft}
             editingId={app.editingId}
             draggingShiftId={app.draggingShiftId}
             generationMessage={app.generationMessage}
             showModal={app.showShiftModal}
+            isQuickShiftEntry={app.isQuickShiftEntry}
             timeError={app.shiftTimeError}
             isManager={app.isManager}
+            selectedEmployeeId={app.scheduleSelectedEmployee?.id}
             setDraft={app.setDraft}
             setSelectedDate={app.setSelectedDate}
-            setNoteDraft={app.setNoteDraft}
             setDraggingShiftId={app.setDraggingShiftId}
             onStoreChange={app.setStoreId}
             onMoveWeek={app.moveWeek}
@@ -160,10 +181,13 @@ export default function App() {
             onTemplateSelect={app.selectTemplate}
             onShiftMove={app.moveShiftToDate}
             onEmployeeDrop={app.addDraggedEmployee}
+            onEmployeeSelect={(employeeId) => {
+              app.setSelectedEmployeeId(employeeId);
+              app.setDraft((current) => ({ ...current, employeeId }));
+            }}
+            onDropTemplateSelect={app.selectDroppedEmployeeTemplate}
+            onDropPickerClose={() => app.setPendingEmployeeDrop(null)}
             onShiftEdit={app.editShift}
-            onShiftAdd={app.startAddShift}
-            onShiftRemove={app.removeShift}
-            onNoteSave={app.saveNote}
             onTimeChange={app.updateDraftTime}
             onShiftDelete={app.deleteShift}
             onModalClose={app.closeShiftModal}

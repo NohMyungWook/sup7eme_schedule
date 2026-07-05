@@ -10,6 +10,8 @@ import type {
 } from '../../domain/types';
 import { templateById } from '../../utils/schedule';
 import { StoreFilter } from '../common/StoreFilter';
+import { Dropdown } from '../common/Dropdown';
+import { TimePicker } from '../common/TimePicker';
 
 type EmployeesViewProps = {
   employees: Employee[];
@@ -78,7 +80,7 @@ export function EmployeesView(props: EmployeesViewProps) {
         <section className="employee-card-grid" aria-label="직원 카드 목록">
           {props.filteredEmployees.map((employee) => (
             <article className={`management-employee-card ${selectedEmployee?.id === employee.id ? 'is-selected' : ''}`} key={employee.id} onClick={() => props.onEmployeeSelect(employee)}>
-              <div className="management-card-heading"><span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span><div><strong>{employee.name}</strong><small>{employee.preference}</small></div></div>
+              <div className="management-card-heading"><span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span><div><strong>{employee.name.slice(1) || employee.name}</strong><small>{employee.preference}</small></div></div>
               <div className="store-badges">{employee.storeIds.map((employeeStoreId) => <span key={employeeStoreId}>{getStoreName(employeeStoreId)}</span>)}</div>
               <div className="management-card-summary"><span>기본 근무</span><strong>{employee.baseShifts.length}건</strong></div>
               {props.isManager ? <div className="management-card-actions"><button type="button" onClick={(event) => { event.stopPropagation(); props.onEditOpen(employee); }}>정보 수정</button><button className="danger" type="button" onClick={(event) => { event.stopPropagation(); props.onEmployeeDelete(employee); }}>삭제</button></div> : null}
@@ -88,7 +90,7 @@ export function EmployeesView(props: EmployeesViewProps) {
         </section>
         {selectedEmployee ? (
           <aside className="employee-profile-panel">
-            <div className="profile-heading"><span style={{ background: selectedEmployee.color }}>{selectedEmployee.name.slice(0, 1)}</span><div><h2>{selectedEmployee.name}</h2><p>{selectedEmployee.preference}</p></div></div>
+            <div className="profile-heading"><span style={{ background: selectedEmployee.color }}>{selectedEmployee.name.slice(0, 1)}</span><div><h2>{selectedEmployee.name.slice(1) || selectedEmployee.name}</h2><p>{selectedEmployee.preference}</p></div></div>
             <div className="profile-store-selector"><strong>기본 근무정보 매장</strong><div>{selectedEmployee.storeIds.map((employeeStoreId) => <button type="button" className={props.storeId === employeeStoreId ? 'is-selected' : undefined} key={employeeStoreId} onClick={() => props.onStoreChange(employeeStoreId)}>{getStoreName(employeeStoreId)}</button>)}</div></div>
             <div className="base-shift-section">
               <div className="base-shift-title"><strong>요일별 기본 근무</strong><small>{getStoreName(props.storeId)} 기준</small></div>
@@ -98,10 +100,10 @@ export function EmployeesView(props: EmployeesViewProps) {
               </div>
               {props.isManager ? (
                 <form className="base-shift-form profile-base-form" onSubmit={props.onBaseShiftAdd}>
-                  <label>요일<select value={baseShiftDraft.weekday} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, weekday: Number(event.target.value) }))}>{weekdays.map((weekday, index) => <option key={weekday} value={index}>{weekday}요일</option>)}</select></label>
-                  <label>근무 유형<select value={baseShiftDraft.templateId} onChange={(event) => props.onTemplateSelect(event.target.value)}>{props.templates.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}</select></label>
-                  <label>시작 시간<input type="time" value={baseShiftDraft.startTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, startTime: event.target.value }))} required /></label>
-                  <label>종료 시간<input type="time" value={baseShiftDraft.endTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, endTime: event.target.value }))} required /></label>
+                  <label>요일<Dropdown value={String(baseShiftDraft.weekday)} options={weekdays.map((weekday, index) => ({ value: String(index), label: `${weekday}요일` }))} onChange={(weekday) => props.setBaseShiftDraft((current) => ({ ...current, weekday: Number(weekday) }))} /></label>
+                  <label>근무 유형<Dropdown value={baseShiftDraft.templateId} options={props.templates.map((template) => ({ value: template.id, label: template.label }))} onChange={props.onTemplateSelect} /></label>
+                  <label>시작 시간<TimePicker value={baseShiftDraft.startTime} onChange={(startTime) => props.setBaseShiftDraft((current) => ({ ...current, startTime }))} ariaLabel="기본 근무 시작 시간" /></label>
+                  <label>종료 시간<TimePicker value={baseShiftDraft.endTime} onChange={(endTime) => props.setBaseShiftDraft((current) => ({ ...current, endTime }))} ariaLabel="기본 근무 종료 시간" /></label>
                   <button className="primary" type="submit">기본 근무 추가</button>
                 </form>
               ) : null}

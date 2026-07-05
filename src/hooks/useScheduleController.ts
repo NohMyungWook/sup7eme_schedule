@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { initialWeekStart, stores } from '../domain/data';
+import {
+  employeeDropTemplateIds,
+  stores,
+} from '../domain/data';
 import {
   createInitialDraft,
 } from "../domain/drafts";
 import type {
   ActiveView,
   DraftShift,
+  PendingEmployeeDrop,
   Shift,
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
@@ -16,6 +20,7 @@ import { usePersistentSchedule } from './usePersistentSchedule';
 import { useTemplateManagement } from './useTemplateManagement';
 import {
   addDays,
+  formatDate,
   getWeekDays,
   getWeekStart,
   splitShiftTime,
@@ -24,21 +29,25 @@ import {
 } from "../utils/schedule";
 
 export function useScheduleController() {
+  const today = formatDate(new Date());
   const [{ employees, shifts, notes, templates }, setSchedule] =
     usePersistentSchedule();
   const [activeView, setActiveView] = useState<ActiveView>('schedule');
   const [storeId, setStoreId] = useState(stores[0].id);
-  const [dashboardMonth, setDashboardMonth] = useState(initialWeekStart.slice(0, 7));
+  const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
   const [employeeStoreFilter, setEmployeeStoreFilter] = useState('all');
   const [noteStoreFilter, setNoteStoreFilter] = useState('all');
-  const [weekStart, setWeekStart] = useState(initialWeekStart);
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(today));
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
-  const [selectedDate, setSelectedDate] = useState(days[2]);
-  const [draft, setDraft] = useState<DraftShift>(() => createInitialDraft(days[2]));
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [draft, setDraft] = useState<DraftShift>(() => createInitialDraft(today));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [generationMessage, setGenerationMessage] = useState('');
   const [draggingShiftId, setDraggingShiftId] = useState<string | null>(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [isQuickShiftEntry, setIsQuickShiftEntry] = useState(false);
+  const [pendingEmployeeDrop, setPendingEmployeeDrop] =
+    useState<PendingEmployeeDrop | null>(null);
   const [shiftTimeError, setShiftTimeError] = useState('');
   const {
     role,
@@ -55,6 +64,8 @@ export function useScheduleController() {
     onLogout: () => {
       setActiveView('schedule');
       setShowShiftModal(false);
+      setIsQuickShiftEntry(false);
+      setPendingEmployeeDrop(null);
     },
   });
 
@@ -113,10 +124,7 @@ export function useScheduleController() {
     setSchedule,
   });
   const {
-    selectedNote,
     filteredNotes,
-    noteDraft,
-    setNoteDraft,
     memoStoreId,
     setMemoStoreId,
     memoDate,
@@ -124,20 +132,21 @@ export function useScheduleController() {
     memoText,
     setMemoText,
     editingMemoKey,
-    saveNote,
     saveMemo,
     editMemo,
     deleteMemo,
     resetMemoForm,
   } = useMemoManagement({
     notes,
-    storeId,
-    selectedDate,
     storeFilter: noteStoreFilter,
     isManager,
     setSchedule,
   });
   const visibleShifts = getStoreShifts(shifts, storeId);
+  const dragTemplates = employeeDropTemplateIds.flatMap((templateId) => {
+    const template = templates.find((item) => item.id === templateId);
+    return template ? [template] : [];
+  });
 
   useEffect(() => {
     if (!days.includes(selectedDate)) {
@@ -204,21 +213,6 @@ export function useScheduleController() {
     }));
   }
 
-  function startAddShift(date: string) {
-    if (!isManager) {
-      return;
-    }
-
-    setSelectedDate(date);
-    setEditingId(null);
-    setDraft((current) => ({
-      ...current,
-      date,
-      employeeId: scheduleSelectedEmployee?.id ?? current.employeeId,
-    }));
-    setShowShiftModal(true);
-  }
-
   function submitShift(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isManager) {
@@ -254,6 +248,7 @@ export function useScheduleController() {
 
     resetDraft(draft.date);
     setShowShiftModal(false);
+    setIsQuickShiftEntry(false);
   }
 
   function editShift(shift: Shift) {
@@ -263,6 +258,7 @@ export function useScheduleController() {
 
     setSelectedDate(shift.date);
     setEditingId(shift.id);
+    setIsQuickShiftEntry(false);
     setDraft({
       date: shift.date,
       employeeId: shift.employeeId,
@@ -284,6 +280,7 @@ export function useScheduleController() {
 
   function closeShiftModal() {
     setShowShiftModal(false);
+    setIsQuickShiftEntry(false);
     setShiftTimeError('');
     resetDraft();
   }
@@ -396,6 +393,32 @@ export function useScheduleController() {
       return;
     }
 
+    setSelectedDate(date);
+    setPendingEmployeeDrop({ employeeId, date });
+  }
+
+  function selectDroppedEmployeeTemplate(templateId: string) {
+    if (!isManager || !pendingEmployeeDrop) {
+      return;
+    }
+
+    const selectedTemplate = templateById(templateId, templates);
+    if (selectedTemplate.requiresTimeInput) {
+      setEditingId(null);
+      setDraft({
+        date: pendingEmployeeDrop.date,
+        employeeId: pendingEmployeeDrop.employeeId,
+        templateId: selectedTemplate.id,
+        time: selectedTemplate.time,
+        note: '',
+      });
+      setShiftTimeError('');
+      setPendingEmployeeDrop(null);
+      setIsQuickShiftEntry(true);
+      setShowShiftModal(true);
+      return;
+    }
+
     setSchedule((current) => ({
       ...current,
       shifts: [
@@ -403,13 +426,14 @@ export function useScheduleController() {
         {
           id: crypto.randomUUID(),
           storeId,
-          date,
-          employeeId,
-          templateId: draft.templateId,
-          time: draft.time,
+          date: pendingEmployeeDrop.date,
+          employeeId: pendingEmployeeDrop.employeeId,
+          templateId: selectedTemplate.id,
+          time: selectedTemplate.time,
         },
       ],
     }));
+    setPendingEmployeeDrop(null);
   }
 
   return {
@@ -417,20 +441,23 @@ export function useScheduleController() {
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
     setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
-    days, selectedDate, setSelectedDate, draft, setDraft, editingId, noteDraft,
-    setNoteDraft, selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
+    days, selectedDate, setSelectedDate, draft, setDraft, editingId,
+    selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
     editingEmployeeId,
     employeeDraft, setEmployeeDraft, baseShiftDraft, setBaseShiftDraft,
     generationMessage, memoStoreId, setMemoStoreId, memoDate, setMemoDate,
     memoText, setMemoText, editingMemoKey, draggingShiftId, setDraggingShiftId,
-    showShiftModal, shiftTimeError, templateDraft, setTemplateDraft,
+    showShiftModal, isQuickShiftEntry, shiftTimeError, pendingEmployeeDrop,
+    dragTemplates,
+    templateDraft, setTemplateDraft,
     editingTemplateId, isManager, visibleShifts, storeEmployees,
     filteredEmployees, selectedEmployee, scheduleSelectedEmployee,
-    selectedEmployeeBaseShifts, selectedNote, filteredNotes, login, logout,
-    moveWeek, openScheduleDate, selectTemplate, updateDraftTime, startAddShift,
+    selectedEmployeeBaseShifts, filteredNotes, login, logout,
+    moveWeek, openScheduleDate, selectTemplate, updateDraftTime,
     submitShift, editShift, deleteShift, closeShiftModal, removeShift,
-    moveShiftToDate, saveNote, saveMemo, editMemo, deleteMemo, resetMemoForm,
-    copyPreviousWeek, generateBaseWeek, addDraggedEmployee, saveEmployee,
+    moveShiftToDate, saveMemo, editMemo, deleteMemo, resetMemoForm,
+    copyPreviousWeek, generateBaseWeek, addDraggedEmployee,
+    selectDroppedEmployeeTemplate, setPendingEmployeeDrop, saveEmployee,
     openAddEmployee, openEditEmployee, closeEmployeeForm, deleteEmployee,
     selectManagedEmployee, toggleDraftStore, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, saveTemplate, editTemplate,

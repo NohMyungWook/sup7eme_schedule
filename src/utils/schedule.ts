@@ -144,5 +144,16 @@ export function templateById(id: string, templates: ShiftTemplate[]) {
 }
 
 export function sortByTime(shifts: Shift[]) {
-  return [...shifts].sort((a, b) => a.time.localeCompare(b.time));
+  const scheduleStart = 8 * 60;
+
+  return [...shifts].sort((a, b) => {
+    const aStart = parseTimeToMinutes(a.time.split('-')[0]);
+    const bStart = parseTimeToMinutes(b.time.split('-')[0]);
+    const aOrder =
+      aStart === null ? Number.MAX_SAFE_INTEGER : (aStart - scheduleStart + 1440) % 1440;
+    const bOrder =
+      bStart === null ? Number.MAX_SAFE_INTEGER : (bStart - scheduleStart + 1440) % 1440;
+
+    return aOrder - bOrder || a.time.localeCompare(b.time);
+  });
 }

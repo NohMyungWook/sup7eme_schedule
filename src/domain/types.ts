@@ -48,6 +48,7 @@ export type ShiftTemplate = {
   label: string;
   time: string;
   color: TemplateColor;
+  requiresTimeInput?: boolean;
 };
 
 export type TemplateDraft = {
@@ -74,6 +75,11 @@ export type DayNote = {
 };
 
 export type DraftShift = Omit<Shift, 'id' | 'storeId'> & { note: string };
+
+export type PendingEmployeeDrop = {
+  employeeId: string;
+  date: string;
+};
 
 export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId'>;
 
