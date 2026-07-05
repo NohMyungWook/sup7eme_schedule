@@ -1,6 +1,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { templateColors } from '../../domain/data';
 import type { ShiftTemplate, TemplateDraft } from '../../domain/types';
+import { TimePicker } from '../common/TimePicker';
 
 type SettingsViewProps = {
   templates: ShiftTemplate[];
@@ -33,9 +34,9 @@ export function SettingsView({ templates, draft, editingTemplateId, setDraft, on
           <div><h2>{editingTemplateId ? '시간대 수정' : '새 시간대 추가'}</h2><p>시작과 종료 시간은 분 단위로 설정할 수 있습니다.</p></div>
           <label>시간대 이름<input value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} placeholder="예: 오전 보조" required /></label>
           <div className="template-time-fields">
-            <label>시작 시간<input type="time" step="60" value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} required /></label>
+            <label>시작 시간<TimePicker value={draft.startTime} onChange={(startTime) => setDraft((current) => ({ ...current, startTime }))} ariaLabel="시간대 시작 시간" /></label>
             <span>~</span>
-            <label>종료 시간<input type="time" step="60" value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} required /></label>
+            <label>종료 시간<TimePicker value={draft.endTime} onChange={(endTime) => setDraft((current) => ({ ...current, endTime }))} ariaLabel="시간대 종료 시간" /></label>
           </div>
           <fieldset className="template-color-field">
             <legend>표시 색상</legend>

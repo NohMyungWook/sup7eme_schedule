@@ -11,6 +11,7 @@ import type {
 import { templateById } from '../../utils/schedule';
 import { StoreFilter } from '../common/StoreFilter';
 import { Dropdown } from '../common/Dropdown';
+import { TimePicker } from '../common/TimePicker';
 
 type EmployeesViewProps = {
   employees: Employee[];
@@ -101,8 +102,8 @@ export function EmployeesView(props: EmployeesViewProps) {
                 <form className="base-shift-form profile-base-form" onSubmit={props.onBaseShiftAdd}>
                   <label>요일<Dropdown value={String(baseShiftDraft.weekday)} options={weekdays.map((weekday, index) => ({ value: String(index), label: `${weekday}요일` }))} onChange={(weekday) => props.setBaseShiftDraft((current) => ({ ...current, weekday: Number(weekday) }))} /></label>
                   <label>근무 유형<Dropdown value={baseShiftDraft.templateId} options={props.templates.map((template) => ({ value: template.id, label: template.label }))} onChange={props.onTemplateSelect} /></label>
-                  <label>시작 시간<input type="time" value={baseShiftDraft.startTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, startTime: event.target.value }))} required /></label>
-                  <label>종료 시간<input type="time" value={baseShiftDraft.endTime} onChange={(event) => props.setBaseShiftDraft((current) => ({ ...current, endTime: event.target.value }))} required /></label>
+                  <label>시작 시간<TimePicker value={baseShiftDraft.startTime} onChange={(startTime) => props.setBaseShiftDraft((current) => ({ ...current, startTime }))} ariaLabel="기본 근무 시작 시간" /></label>
+                  <label>종료 시간<TimePicker value={baseShiftDraft.endTime} onChange={(endTime) => props.setBaseShiftDraft((current) => ({ ...current, endTime }))} ariaLabel="기본 근무 종료 시간" /></label>
                   <button className="primary" type="submit">기본 근무 추가</button>
                 </form>
               ) : null}

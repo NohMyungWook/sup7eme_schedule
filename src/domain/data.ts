@@ -20,6 +20,14 @@ export const templateColors: Array<{ value: TemplateColor; label: string }> = [
   { value: 'red', label: '빨강' },
 ];
 
+export const employeeDropTemplateIds = [
+  'open',
+  'middle',
+  'evening',
+  'night',
+  'sub',
+];
+
 export const stores: Store[] = [
   { id: 'sadang', name: '사당점' },
   { id: 'seokchon', name: '석촌점' },
@@ -64,8 +72,6 @@ export const initialTemplates: ShiftTemplate[] = [
     requiresTimeInput: true,
   },
 ];
-
-export const initialWeekStart = '2025-06-15';
 
 export const initialShifts: Shift[] = [
   ['2025-06-15', 'myeongok', 'open', '08:00-15:00'],

@@ -76,6 +76,11 @@ export type DayNote = {
 
 export type DraftShift = Omit<Shift, 'id' | 'storeId'> & { note: string };
 
+export type PendingEmployeeDrop = {
+  employeeId: string;
+  date: string;
+};
+
 export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId'>;
 
 export type ScheduleState = {

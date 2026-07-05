@@ -1,45 +1,22 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { initialNotes, stores } from '../domain/data';
-import { filterNotesByStore, findDayNote } from '../domain/selectors';
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { stores } from '../domain/data';
+import { filterNotesByStore } from '../domain/selectors';
 import type { DayNote, ScheduleState } from '../domain/types';
 import { formatDate } from '../utils/schedule';
 
 type UseMemoManagementOptions = {
   notes: DayNote[];
-  storeId: string;
-  selectedDate: string;
   storeFilter: string;
   isManager: boolean;
   setSchedule: Dispatch<SetStateAction<ScheduleState>>;
 };
 
-export function useMemoManagement({ notes, storeId, selectedDate, storeFilter, isManager, setSchedule }: UseMemoManagementOptions) {
-  const selectedNote = findDayNote(notes, storeId, selectedDate);
+export function useMemoManagement({ notes, storeFilter, isManager, setSchedule }: UseMemoManagementOptions) {
   const filteredNotes = filterNotesByStore(notes, storeFilter);
-  const [noteDraft, setNoteDraft] = useState(initialNotes[0].text);
   const [memoStoreId, setMemoStoreId] = useState(stores[0].id);
   const [memoDate, setMemoDate] = useState(formatDate(new Date()));
   const [memoText, setMemoText] = useState('');
   const [editingMemoKey, setEditingMemoKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    setNoteDraft(selectedNote?.text ?? '');
-  }, [selectedNote]);
-
-  function saveNote() {
-    if (!isManager) return;
-    setSchedule((current) => {
-      const otherNotes = current.notes.filter(
-        (note) => !(note.storeId === storeId && note.date === selectedDate),
-      );
-      return {
-        ...current,
-        notes: noteDraft.trim()
-          ? [...otherNotes, { storeId, date: selectedDate, text: noteDraft.trim() }]
-          : otherNotes,
-      };
-    });
-  }
 
   function saveMemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,8 +62,8 @@ export function useMemoManagement({ notes, storeId, selectedDate, storeFilter, i
   }
 
   return {
-    selectedNote, filteredNotes, noteDraft, setNoteDraft, memoStoreId,
-    setMemoStoreId, memoDate, setMemoDate, memoText, setMemoText,
-    editingMemoKey, saveNote, saveMemo, editMemo, deleteMemo, resetMemoForm,
+    filteredNotes, memoStoreId, setMemoStoreId, memoDate, setMemoDate,
+    memoText, setMemoText, editingMemoKey, saveMemo, editMemo, deleteMemo,
+    resetMemoForm,
   };
 }

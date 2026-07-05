@@ -22,14 +22,6 @@ export function getStoreShifts(shifts: Shift[], storeId: string) {
   return shifts.filter((shift) => shift.storeId === storeId);
 }
 
-export function findDayNote(
-  notes: DayNote[],
-  storeId: string,
-  date: string,
-) {
-  return notes.find((note) => note.storeId === storeId && note.date === date);
-}
-
 export function filterNotesByStore(notes: DayNote[], storeId: string) {
   return [...notes]
     .filter((note) => storeId === 'all' || note.storeId === storeId)
