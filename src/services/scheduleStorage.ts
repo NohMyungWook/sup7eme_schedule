@@ -3,6 +3,7 @@ import {
   initialNotes,
   initialShifts,
   initialTemplates,
+  SCHEDULE_DATA_VERSION,
   SESSION_KEY,
   STORAGE_KEY,
   stores,
@@ -67,6 +68,7 @@ export function loadScheduleState(): ScheduleState {
       shifts: ScheduleState['shifts'];
       notes: ScheduleState['notes'];
       templates?: ScheduleState['templates'];
+      version?: number;
     };
     const employees = parsed.employees?.length
       ? parsed.employees.map((employee) => {
@@ -99,11 +101,16 @@ export function loadScheduleState(): ScheduleState {
         })
       : createInitialEmployees();
 
+    const templates =
+      parsed.version === SCHEDULE_DATA_VERSION
+        ? parsed.templates
+        : migrateDefaultTemplates(parsed.templates);
+
     return {
       employees,
       shifts: parsed.shifts,
       notes: parsed.notes,
-      templates: parsed.templates?.length ? parsed.templates : initialTemplates,
+      templates: templates?.length ? templates : initialTemplates,
     };
   } catch {
     return initialState();
@@ -111,5 +118,18 @@ export function loadScheduleState(): ScheduleState {
 }
 
 export function saveScheduleState(state: ScheduleState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ ...state, version: SCHEDULE_DATA_VERSION }),
+  );
+}
+
+function migrateDefaultTemplates(savedTemplates?: ScheduleState['templates']) {
+  if (!savedTemplates?.length) return initialTemplates;
+
+  const defaultIds = new Set(initialTemplates.map((template) => template.id));
+  return [
+    ...initialTemplates,
+    ...savedTemplates.filter((template) => !defaultIds.has(template.id)),
+  ];
 }

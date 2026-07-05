@@ -48,6 +48,7 @@ export type ShiftTemplate = {
   label: string;
   time: string;
   color: TemplateColor;
+  requiresTimeInput?: boolean;
 };
 
 export type TemplateDraft = {

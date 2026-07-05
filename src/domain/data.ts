@@ -8,6 +8,7 @@ import type {
 } from './types';
 
 export const STORAGE_KEY = 'sup7eme-schedule-v2';
+export const SCHEDULE_DATA_VERSION = 3;
 export const SESSION_KEY = 'kingmw-session-role';
 export const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 export const templateColors: Array<{ value: TemplateColor; label: string }> = [
@@ -44,12 +45,24 @@ export const initialEmployees: Employee[] = [
 ].map((employee) => ({ ...employee, baseShifts: [] }));
 
 export const initialTemplates: ShiftTemplate[] = [
-  { id: 'open', label: '오픈', time: '08:00-15:00', color: 'blue' },
-  { id: 'middle', label: '오후 1', time: '15:00-22:00', color: 'green' },
-  { id: 'evening', label: '오후 2', time: '17:00-23:00', color: 'orange' },
-  { id: 'sub', label: '보조', time: '18:00-23:00', color: 'purple' },
-  { id: 'night', label: '야간', time: '22:00-08:00', color: 'navy' },
-  { id: 'custom', label: '?', time: '16:00-22:00', color: 'red' },
+  { id: 'open', label: '오전 고정', time: '08:00-15:00', color: 'blue' },
+  { id: 'middle', label: '오후 기본', time: '15:00-22:00', color: 'green' },
+  {
+    id: 'evening',
+    label: '오후 변동',
+    time: '15:00-22:00',
+    color: 'orange',
+    requiresTimeInput: true,
+  },
+  { id: 'night', label: '야간 고정', time: '22:00-08:00', color: 'navy' },
+  { id: 'sub', label: '야간 보조', time: '22:00-02:00', color: 'purple' },
+  {
+    id: 'custom',
+    label: '교육',
+    time: '08:00-15:00',
+    color: 'red',
+    requiresTimeInput: true,
+  },
 ];
 
 export const initialWeekStart = '2025-06-15';

@@ -51,7 +51,7 @@ export function ScheduleView(props: ScheduleViewProps) {
         {props.isManager ? <div className="week-actions"><button type="button" onClick={props.onCopyPreviousWeek}>지난주 복사</button><button type="button" className="primary" onClick={props.onGenerateBaseWeek}>기본 주 생성</button></div> : null}
       </div>
       {props.generationMessage ? <p className="generation-message" role="status">{props.generationMessage}</p> : null}
-      {props.isManager ? <div className="template-row">{props.templates.map((template) => <button className={`template-chip ${template.color} ${props.draft.templateId === template.id ? 'is-picked' : ''}`} key={template.id} type="button" onClick={() => props.onTemplateSelect(template.id)}><span>{template.label}</span><strong>{template.time}</strong></button>)}</div> : null}
+      {props.isManager ? <div className="template-row">{props.templates.map((template) => <button className={`template-chip ${template.color} ${props.draft.templateId === template.id ? 'is-picked' : ''}`} key={template.id} type="button" onClick={() => props.onTemplateSelect(template.id)}><span>{template.label}</span><strong>{template.requiresTimeInput ? '시간 직접 입력' : template.time}</strong></button>)}</div> : null}
       <section className="schedule-grid" aria-label="주간 스케줄">
         {props.days.map((date) => {
           const dayShifts = sortByTime(props.visibleShifts.filter((shift) => shift.date === date));

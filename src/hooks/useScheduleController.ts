@@ -396,6 +396,22 @@ export function useScheduleController() {
       return;
     }
 
+    const selectedTemplate = templateById(draft.templateId, templates);
+    if (selectedTemplate.requiresTimeInput) {
+      setSelectedDate(date);
+      setEditingId(null);
+      setDraft({
+        date,
+        employeeId,
+        templateId: selectedTemplate.id,
+        time: selectedTemplate.time,
+        note: '',
+      });
+      setShiftTimeError('');
+      setShowShiftModal(true);
+      return;
+    }
+
     setSchedule((current) => ({
       ...current,
       shifts: [
