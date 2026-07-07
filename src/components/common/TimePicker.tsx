@@ -4,9 +4,10 @@ type TimePickerProps = {
   value: string;
   onChange: (value: string) => void;
   ariaLabel?: string;
+  disabled?: boolean;
 };
 
-export function TimePicker({ value, onChange, ariaLabel = '시간' }: TimePickerProps) {
+export function TimePicker({ value, onChange, ariaLabel = '시간', disabled = false }: TimePickerProps) {
   const [initialHour, initialMinute] = splitTime(value);
   const [hour, setHour] = useState(initialHour);
   const [minute, setMinute] = useState(initialMinute);
@@ -55,6 +56,7 @@ export function TimePicker({ value, onChange, ariaLabel = '시간' }: TimePicker
           maxLength={2}
           value={hour}
           aria-label={`${ariaLabel} 시`}
+          disabled={disabled}
           onChange={(event) => updatePart(event, 'hour')}
           onBlur={() => commit()}
           onKeyDown={finishOnEnter}
@@ -70,6 +72,7 @@ export function TimePicker({ value, onChange, ariaLabel = '시간' }: TimePicker
           maxLength={2}
           value={minute}
           aria-label={`${ariaLabel} 분`}
+          disabled={disabled}
           onChange={(event) => updatePart(event, 'minute')}
           onBlur={() => commit()}
           onKeyDown={finishOnEnter}

@@ -40,12 +40,12 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
     event.preventDefault();
     if (!isManager || !templateDraft.label.trim()) return;
     const time = `${templateDraft.startTime}-${templateDraft.endTime}`;
-    if (templateDraft.startTime === templateDraft.endTime) return;
+    if (!templateDraft.requiresTimeInput && templateDraft.startTime === templateDraft.endTime) return;
 
     if (editingTemplateId) {
       setSchedule((current) => ({
         ...current,
-        templates: current.templates.map((template) => template.id === editingTemplateId ? { ...template, label: templateDraft.label.trim(), time, color: templateDraft.color } : template),
+        templates: current.templates.map((template) => template.id === editingTemplateId ? { ...template, label: templateDraft.label.trim(), time, color: templateDraft.color, requiresTimeInput: templateDraft.requiresTimeInput } : template),
       }));
       if (draft.templateId === editingTemplateId) {
         setDraft((current) => ({ ...current, time }));
@@ -53,7 +53,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
     } else {
       setSchedule((current) => ({
         ...current,
-        templates: [...current.templates, { id: crypto.randomUUID(), label: templateDraft.label.trim(), time, color: templateDraft.color }],
+        templates: [...current.templates, { id: crypto.randomUUID(), label: templateDraft.label.trim(), time, color: templateDraft.color, requiresTimeInput: templateDraft.requiresTimeInput }],
       }));
     }
     closeTemplateForm();
@@ -62,7 +62,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
   function editTemplate(template: ShiftTemplate) {
     const { startTime, endTime } = splitShiftTime(template.time);
     setEditingTemplateId(template.id);
-    setTemplateDraft({ label: template.label, startTime, endTime, color: template.color });
+    setTemplateDraft({ label: template.label, startTime, endTime, color: template.color, requiresTimeInput: Boolean(template.requiresTimeInput) });
   }
 
   function closeTemplateForm() {

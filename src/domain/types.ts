@@ -56,6 +56,7 @@ export type TemplateDraft = {
   startTime: string;
   endTime: string;
   color: TemplateColor;
+  requiresTimeInput: boolean;
 };
 
 export type Shift = {
@@ -81,7 +82,9 @@ export type PendingEmployeeDrop = {
   date: string;
 };
 
-export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId'>;
+export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId' | 'weekday'> & {
+  weekdays: number[];
+};
 
 export type ScheduleState = {
   employees: Employee[];

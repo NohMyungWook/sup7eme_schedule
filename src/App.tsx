@@ -101,15 +101,15 @@ export default function App() {
             filteredEmployees={app.filteredEmployees}
             selectedEmployee={app.selectedEmployee}
             selectedBaseShifts={app.selectedEmployeeBaseShifts}
-            templates={app.templates}
             storeId={app.storeId}
             storeFilter={app.employeeStoreFilter}
             showForm={app.showEmployeeForm}
-            editingEmployeeId={app.editingEmployeeId}
             employeeDraft={app.employeeDraft}
+            selectedEmployeeDraft={app.selectedEmployeeDraft}
             baseShiftDraft={app.baseShiftDraft}
             isManager={app.isManager}
             setEmployeeDraft={app.setEmployeeDraft}
+            setSelectedEmployeeDraft={app.setSelectedEmployeeDraft}
             setBaseShiftDraft={app.setBaseShiftDraft}
             onStoreFilterChange={(storeId) => {
               app.setEmployeeStoreFilter(storeId);
@@ -117,12 +117,14 @@ export default function App() {
             }}
             onStoreChange={app.setStoreId}
             onAddOpen={app.openAddEmployee}
-            onEditOpen={app.openEditEmployee}
             onFormClose={app.closeEmployeeForm}
             onEmployeeSave={app.saveEmployee}
+            onSelectedEmployeeSave={app.saveSelectedEmployee}
             onEmployeeDelete={app.deleteEmployee}
             onEmployeeSelect={app.selectManagedEmployee}
             onStoreToggle={app.toggleDraftStore}
+            onSelectedStoreToggle={app.toggleSelectedEmployeeStore}
+            onBaseShiftWeekdayToggle={app.toggleBaseShiftWeekday}
             onTemplateSelect={app.selectBaseShiftTemplate}
             onBaseShiftAdd={app.addBaseShift}
             onBaseShiftDelete={app.deleteBaseShift}
