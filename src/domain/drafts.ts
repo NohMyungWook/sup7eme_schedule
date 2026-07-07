@@ -42,5 +42,6 @@ export function createInitialTemplateDraft(): TemplateDraft {
     startTime: '08:00',
     endTime: '15:00',
     color: 'blue',
+    requiresTimeInput: false,
   };
 }

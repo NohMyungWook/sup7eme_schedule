@@ -56,6 +56,7 @@ export type TemplateDraft = {
   startTime: string;
   endTime: string;
   color: TemplateColor;
+  requiresTimeInput: boolean;
 };
 
 export type Shift = {
