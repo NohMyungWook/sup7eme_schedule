@@ -81,7 +81,9 @@ export type PendingEmployeeDrop = {
   date: string;
 };
 
-export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId'>;
+export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId' | 'weekday'> & {
+  weekdays: number[];
+};
 
 export type ScheduleState = {
   employees: Employee[];

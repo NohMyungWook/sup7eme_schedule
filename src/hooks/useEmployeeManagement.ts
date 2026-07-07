@@ -10,13 +10,10 @@ import type {
   Employee,
   EmployeeDraft,
   ScheduleState,
-  ShiftTemplate,
 } from '../domain/types';
-import { splitShiftTime, templateById } from '../utils/schedule';
 
 type Options = {
   employees: Employee[];
-  templates: ShiftTemplate[];
   storeId: string;
   storeFilter: string;
   activeView: ActiveView;
@@ -28,11 +25,16 @@ type Options = {
 };
 
 export function useEmployeeManagement(options: Options) {
-  const { employees, templates, storeId, storeFilter, activeView, isManager, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
+  const { employees, storeId, storeFilter, activeView, isManager, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(initialEmployees[0].id);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [employeeDraft, setEmployeeDraft] = useState<EmployeeDraft>(createInitialEmployeeDraft);
+  const [selectedEmployeeDraft, setSelectedEmployeeDraftState] = useState<EmployeeDraft>(() => ({
+    name: initialEmployees[0].name,
+    preference: initialEmployees[0].preference,
+    color: initialEmployees[0].color,
+    storeIds: [...initialEmployees[0].storeIds],
+  }));
   const [baseShiftDraft, setBaseShiftDraft] = useState<BaseShiftDraft>(createInitialBaseShiftDraft);
   const storeEmployees = getStoreEmployees(employees, storeId);
   const filteredEmployees = filterEmployeesByStore(employees, storeFilter);
@@ -48,53 +50,61 @@ export function useEmployeeManagement(options: Options) {
     }
   }, [activeView, filteredEmployees, selectedEmployeeId]);
 
+  useEffect(() => {
+    if (activeView !== 'employees' || !selectedEmployee) return;
+    setSelectedEmployeeDraftState({
+      name: selectedEmployee.name,
+      preference: selectedEmployee.preference,
+      color: selectedEmployee.color,
+      storeIds: [...selectedEmployee.storeIds],
+    });
+  }, [activeView, selectedEmployee]);
+
   function saveEmployee(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isManager) return;
     const name = employeeDraft.name.trim();
     if (!name || !employeeDraft.storeIds.length) return;
 
-    if (editingEmployeeId) {
-      setSchedule((current) => ({
-        ...current,
-        employees: current.employees.map((employee) => employee.id !== editingEmployeeId ? employee : {
-          ...employee,
-          name,
-          preference: employeeDraft.preference.trim() || '근무 조건 미입력',
-          color: employeeDraft.color,
-          storeIds: employeeDraft.storeIds,
-          baseShifts: employee.baseShifts.filter((rule) => employeeDraft.storeIds.includes(rule.storeId)),
-        }),
-      }));
-    } else {
-      const newEmployee: Employee = {
-        id: crypto.randomUUID(), name,
-        preference: employeeDraft.preference.trim() || '근무 조건 미입력',
-        color: employeeDraft.color, storeIds: employeeDraft.storeIds, baseShifts: [],
-      };
-      setSchedule((current) => ({ ...current, employees: [...current.employees, newEmployee] }));
-      setSelectedEmployeeId(newEmployee.id);
-      setDraft((current) => ({ ...current, employeeId: newEmployee.id }));
-    }
+    const newEmployee: Employee = {
+      id: crypto.randomUUID(), name,
+      preference: employeeDraft.preference.trim() || '근무 조건 미입력',
+      color: employeeDraft.color, storeIds: employeeDraft.storeIds, baseShifts: [],
+    };
+    setSchedule((current) => ({ ...current, employees: [...current.employees, newEmployee] }));
+    setSelectedEmployeeId(newEmployee.id);
+    setSelectedEmployeeDraftState({ name: newEmployee.name, preference: newEmployee.preference, color: newEmployee.color, storeIds: [...newEmployee.storeIds] });
+    setDraft((current) => ({ ...current, employeeId: newEmployee.id }));
     closeEmployeeForm();
   }
 
-  function openAddEmployee() {
-    setEditingEmployeeId(null);
-    setEmployeeDraft(createInitialEmployeeDraft(storeFilter === 'all' ? storeId : storeFilter));
-    setShowEmployeeForm(true);
+  function saveSelectedEmployee(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isManager || !selectedEmployee) return;
+    const name = selectedEmployeeDraft.name.trim();
+    if (!name || !selectedEmployeeDraft.storeIds.length) return;
+
+    setSchedule((current) => ({
+      ...current,
+      employees: current.employees.map((employee) => employee.id !== selectedEmployee.id ? employee : {
+        ...employee,
+        name,
+        preference: selectedEmployeeDraft.preference.trim() || '근무 조건 미입력',
+        color: selectedEmployeeDraft.color,
+        storeIds: selectedEmployeeDraft.storeIds,
+        baseShifts: employee.baseShifts.filter((rule) => selectedEmployeeDraft.storeIds.includes(rule.storeId)),
+      }),
+    }));
+    setGenerationMessage('');
   }
 
-  function openEditEmployee(employee: Employee) {
-    setSelectedEmployeeId(employee.id);
-    setEditingEmployeeId(employee.id);
-    setEmployeeDraft({ name: employee.name, preference: employee.preference, color: employee.color, storeIds: [...employee.storeIds] });
+  function openAddEmployee() {
+    setEmployeeDraft(createInitialEmployeeDraft(storeFilter === 'all' ? storeId : storeFilter));
     setShowEmployeeForm(true);
   }
 
   function closeEmployeeForm() {
     setShowEmployeeForm(false);
-    setEditingEmployeeId(null);
     setEmployeeDraft(createInitialEmployeeDraft(storeId));
   }
 
@@ -110,7 +120,9 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function selectManagedEmployee(employee: Employee) {
+    setShowEmployeeForm(false);
     setSelectedEmployeeId(employee.id);
+    setSelectedEmployeeDraftState({ name: employee.name, preference: employee.preference, color: employee.color, storeIds: [...employee.storeIds] });
     setBaseShiftDraft(createInitialBaseShiftDraft());
     if (!employee.storeIds.includes(storeId)) setStoreId(employee.storeIds[0]);
   }
@@ -119,40 +131,95 @@ export function useEmployeeManagement(options: Options) {
     setEmployeeDraft((current) => ({ ...current, storeIds: current.storeIds.includes(nextStoreId) ? current.storeIds.filter((id) => id !== nextStoreId) : [...current.storeIds, nextStoreId] }));
   }
 
+  const setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>> = (nextDraft) => {
+    setSelectedEmployeeDraftState((currentDraft) => {
+      const resolvedDraft = typeof nextDraft === 'function' ? nextDraft(currentDraft) : nextDraft;
+      if (selectedEmployeeId) {
+        setSchedule((current) => ({
+          ...current,
+          employees: current.employees.map((employee) => employee.id !== selectedEmployeeId ? employee : {
+            ...employee,
+            name: resolvedDraft.name,
+            preference: resolvedDraft.preference,
+            color: resolvedDraft.color,
+            storeIds: resolvedDraft.storeIds,
+            baseShifts: employee.baseShifts.filter((rule) => resolvedDraft.storeIds.includes(rule.storeId)),
+          }),
+        }));
+      }
+      return resolvedDraft;
+    });
+  };
+
+  function toggleSelectedEmployeeStore(nextStoreId: string) {
+    setSelectedEmployeeDraft((current) => {
+      const storeIds = current.storeIds.includes(nextStoreId)
+        ? current.storeIds.filter((id) => id !== nextStoreId)
+        : [...current.storeIds, nextStoreId];
+      if (storeIds.length && !storeIds.includes(storeId)) setStoreId(storeIds[0]);
+      return { ...current, storeIds };
+    });
+  }
+
+  function toggleBaseShiftWeekday(weekday: number) {
+    setBaseShiftDraft((current) => {
+      const weekdays = current.weekdays.includes(weekday)
+        ? current.weekdays.filter((item) => item !== weekday)
+        : [...current.weekdays, weekday].sort((a, b) => a - b);
+      return { ...current, weekdays };
+    });
+  }
+
   function selectBaseShiftTemplate(templateId: string) {
-    const template = templateById(templateId, templates);
-    const { startTime, endTime } = splitShiftTime(template.time);
-    setBaseShiftDraft((current) => ({ ...current, templateId, startTime, endTime }));
+    const timeByTemplateId: Record<string, { startTime: string; endTime: string }> = {
+      open: { startTime: '08:00', endTime: '15:00' },
+      middle: { startTime: '15:00', endTime: '22:00' },
+      night: { startTime: '22:00', endTime: '08:00' },
+      custom: { startTime: '00:00', endTime: '00:00' },
+    };
+    const time = timeByTemplateId[templateId] ?? timeByTemplateId.custom;
+    setBaseShiftDraft((current) => ({ ...current, templateId, ...time }));
   }
 
   function addBaseShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager || !selectedEmployee) return;
-    const newRule: BaseShiftRule = { id: crypto.randomUUID(), storeId, ...baseShiftDraft };
+    if (!isManager || !selectedEmployee || !baseShiftDraft.weekdays.length) return;
+    const newRules: BaseShiftRule[] = baseShiftDraft.weekdays.map((weekday) => ({
+      id: crypto.randomUUID(),
+      storeId,
+      weekday,
+      templateId: baseShiftDraft.templateId,
+      startTime: baseShiftDraft.startTime,
+      endTime: baseShiftDraft.endTime,
+    }));
     setSchedule((current) => ({
       ...current,
-      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: [...employee.baseShifts, newRule] } : employee),
+      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: [...employee.baseShifts, ...newRules] } : employee),
     }));
     setBaseShiftDraft(createInitialBaseShiftDraft());
     setGenerationMessage('');
   }
 
-  function deleteBaseShift(ruleId: string) {
+  function deleteBaseShift(ruleIds: string | string[]) {
     if (!isManager || !selectedEmployee) return;
+    const deleteIds = Array.isArray(ruleIds) ? ruleIds : [ruleIds];
     setSchedule((current) => ({
       ...current,
-      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: employee.baseShifts.filter((rule) => rule.id !== ruleId) } : employee),
+      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: employee.baseShifts.filter((rule) => !deleteIds.includes(rule.id)) } : employee),
     }));
     setGenerationMessage('');
   }
 
   return {
     selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
-    editingEmployeeId, employeeDraft, setEmployeeDraft, baseShiftDraft,
+    employeeDraft, setEmployeeDraft,
+    selectedEmployeeDraft, setSelectedEmployeeDraft, baseShiftDraft,
     setBaseShiftDraft, storeEmployees, filteredEmployees, selectedEmployee,
     scheduleSelectedEmployee, selectedEmployeeBaseShifts, saveEmployee,
-    openAddEmployee, openEditEmployee, closeEmployeeForm, deleteEmployee,
-    selectManagedEmployee, toggleDraftStore, selectBaseShiftTemplate,
+    saveSelectedEmployee,
+    openAddEmployee, closeEmployeeForm, deleteEmployee,
+    selectManagedEmployee, toggleDraftStore, toggleSelectedEmployeeStore,
+    toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift,
   };
 }

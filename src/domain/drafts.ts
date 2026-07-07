@@ -29,7 +29,7 @@ export function createInitialEmployeeDraft(
 
 export function createInitialBaseShiftDraft(): BaseShiftDraft {
   return {
-    weekday: 1,
+    weekdays: [1],
     templateId: initialTemplates[0].id,
     startTime: '08:00',
     endTime: '15:00',

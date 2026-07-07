@@ -28,11 +28,19 @@ import {
   toDate,
 } from "../utils/schedule";
 
+const ACTIVE_VIEW_SESSION_KEY = 'kingmw-active-view';
+const activeViews: ActiveView[] = ['dashboard', 'schedule', 'employees', 'notes', 'settings'];
+
+function loadActiveView(): ActiveView {
+  const savedView = sessionStorage.getItem(ACTIVE_VIEW_SESSION_KEY);
+  return activeViews.includes(savedView as ActiveView) ? savedView as ActiveView : 'schedule';
+}
+
 export function useScheduleController() {
   const today = formatDate(new Date());
   const [{ employees, shifts, notes, templates }, setSchedule] =
     usePersistentSchedule();
-  const [activeView, setActiveView] = useState<ActiveView>('schedule');
+  const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
   const [storeId, setStoreId] = useState(stores[0].id);
   const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
   const [employeeStoreFilter, setEmployeeStoreFilter] = useState('all');
@@ -74,9 +82,10 @@ export function useScheduleController() {
     selectedEmployeeId,
     setSelectedEmployeeId,
     showEmployeeForm,
-    editingEmployeeId,
     employeeDraft,
     setEmployeeDraft,
+    selectedEmployeeDraft,
+    setSelectedEmployeeDraft,
     baseShiftDraft,
     setBaseShiftDraft,
     storeEmployees,
@@ -85,18 +94,19 @@ export function useScheduleController() {
     scheduleSelectedEmployee,
     selectedEmployeeBaseShifts,
     saveEmployee,
+    saveSelectedEmployee,
     openAddEmployee,
-    openEditEmployee,
     closeEmployeeForm,
     deleteEmployee,
     selectManagedEmployee,
     toggleDraftStore,
+    toggleSelectedEmployeeStore,
+    toggleBaseShiftWeekday,
     selectBaseShiftTemplate,
     addBaseShift,
     deleteBaseShift,
   } = useEmployeeManagement({
     employees,
-    templates,
     storeId,
     storeFilter: employeeStoreFilter,
     activeView,
@@ -147,6 +157,10 @@ export function useScheduleController() {
     const template = templates.find((item) => item.id === templateId);
     return template ? [template] : [];
   });
+
+  useEffect(() => {
+    sessionStorage.setItem(ACTIVE_VIEW_SESSION_KEY, activeView);
+  }, [activeView]);
 
   useEffect(() => {
     if (!days.includes(selectedDate)) {
@@ -443,8 +457,8 @@ export function useScheduleController() {
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
     days, selectedDate, setSelectedDate, draft, setDraft, editingId,
     selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
-    editingEmployeeId,
-    employeeDraft, setEmployeeDraft, baseShiftDraft, setBaseShiftDraft,
+    employeeDraft, setEmployeeDraft, selectedEmployeeDraft,
+    setSelectedEmployeeDraft, baseShiftDraft, setBaseShiftDraft,
     generationMessage, memoStoreId, setMemoStoreId, memoDate, setMemoDate,
     memoText, setMemoText, editingMemoKey, draggingShiftId, setDraggingShiftId,
     showShiftModal, isQuickShiftEntry, shiftTimeError, pendingEmployeeDrop,
@@ -458,8 +472,9 @@ export function useScheduleController() {
     moveShiftToDate, saveMemo, editMemo, deleteMemo, resetMemoForm,
     copyPreviousWeek, generateBaseWeek, addDraggedEmployee,
     selectDroppedEmployeeTemplate, setPendingEmployeeDrop, saveEmployee,
-    openAddEmployee, openEditEmployee, closeEmployeeForm, deleteEmployee,
-    selectManagedEmployee, toggleDraftStore, selectBaseShiftTemplate,
+    saveSelectedEmployee, openAddEmployee, closeEmployeeForm, deleteEmployee,
+    selectManagedEmployee, toggleDraftStore, toggleSelectedEmployeeStore,
+    toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, saveTemplate, editTemplate,
     closeTemplateForm, deleteTemplate,
   };
