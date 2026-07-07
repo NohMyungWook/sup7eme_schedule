@@ -1,7 +1,7 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { templateColors } from '../../domain/data';
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import type { ShiftTemplate, TemplateDraft } from '../../domain/types';
-import { TimePicker } from '../common/TimePicker';
+import { SettingsOverview } from '../settings/SettingsOverview';
+import { TimeTemplateSettings } from '../settings/TimeTemplateSettings';
 
 type SettingsViewProps = {
   templates: ShiftTemplate[];
@@ -14,42 +14,36 @@ type SettingsViewProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-export function SettingsView({ templates, draft, editingTemplateId, setDraft, onEdit, onDelete, onReset, onSubmit }: SettingsViewProps) {
+export function SettingsView({
+  templates,
+  draft,
+  editingTemplateId,
+  setDraft,
+  onEdit,
+  onReset,
+  onSubmit,
+}: SettingsViewProps) {
+  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates'>('overview');
+
+  if (activeSettingsPanel === 'overview') {
+    return (
+      <SettingsOverview
+        templates={templates}
+        onTemplateSettingsOpen={() => setActiveSettingsPanel('templates')}
+      />
+    );
+  }
+
   return (
-    <>
-      <header className="employee-page-header"><div><h1>시간대 설정</h1><p>스케줄에서 사용하는 근무 이름, 기본 시간과 색상을 관리합니다.</p></div></header>
-      <div className="template-settings-layout">
-        <section className="template-settings-list">
-          {templates.map((template) => (
-            <article className={`template-settings-card ${template.color}`} key={template.id}>
-              <div><span>{template.label}</span><strong>{template.requiresTimeInput ? '직접입력' : template.time}</strong></div>
-              <div className="template-settings-actions">
-                <button type="button" onClick={() => onEdit(template)}>수정</button>
-                <button className="danger" type="button" disabled={templates.length <= 1} onClick={() => onDelete(template.id)}>삭제</button>
-              </div>
-            </article>
-          ))}
-        </section>
-        <form className="template-settings-form" onSubmit={onSubmit}>
-          <div><h2>{editingTemplateId ? '시간대 수정' : '새 시간대 추가'}</h2><p>시작과 종료 시간은 분 단위로 설정할 수 있습니다.</p></div>
-          <label>시간대 이름<input value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} placeholder="예: 오전 보조" required /></label>
-          <div className="template-time-fields">
-            <label>시작 시간<TimePicker value={draft.startTime} onChange={(startTime) => setDraft((current) => ({ ...current, startTime }))} ariaLabel="시간대 시작 시간" disabled={draft.requiresTimeInput} /></label>
-            <span>~</span>
-            <label>종료 시간<TimePicker value={draft.endTime} onChange={(endTime) => setDraft((current) => ({ ...current, endTime }))} ariaLabel="시간대 종료 시간" disabled={draft.requiresTimeInput} /></label>
-          </div>
-          <label className="template-direct-input-toggle"><input type="checkbox" checked={draft.requiresTimeInput} onChange={(event) => setDraft((current) => ({ ...current, requiresTimeInput: event.target.checked }))} /><span>직접 입력</span></label>
-          <fieldset className="template-color-field">
-            <legend>표시 색상</legend>
-            {templateColors.map((color) => <label className={color.value} key={color.value}><input type="radio" name="template-color" value={color.value} checked={draft.color === color.value} onChange={() => setDraft((current) => ({ ...current, color: color.value }))} /><span>{color.label}</span></label>)}
-          </fieldset>
-          <div className="template-preview"><span>미리보기</span><div className={`template-chip ${draft.color}`}><span>{draft.label || '시간대 이름'}</span><strong>{draft.requiresTimeInput ? '직접입력' : `${draft.startTime}-${draft.endTime}`}</strong></div></div>
-          <div className="form-actions">
-            <button type="button" onClick={onReset}>{editingTemplateId ? '취소' : '초기화'}</button>
-            <button className="primary" type="submit" disabled={!draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
-          </div>
-        </form>
-      </div>
-    </>
+    <TimeTemplateSettings
+      templates={templates}
+      draft={draft}
+      editingTemplateId={editingTemplateId}
+      setDraft={setDraft}
+      onBack={() => setActiveSettingsPanel('overview')}
+      onEdit={onEdit}
+      onReset={onReset}
+      onSubmit={onSubmit}
+    />
   );
 }
