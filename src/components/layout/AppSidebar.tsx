@@ -3,6 +3,7 @@ import type { ActiveView, Role } from '../../domain/types';
 type AppSidebarProps = {
   activeView: ActiveView;
   role: Role;
+  displayName: string;
   onViewChange: (view: ActiveView) => void;
   onClose: () => void;
   onLogout: () => void;
@@ -11,6 +12,7 @@ type AppSidebarProps = {
 export function AppSidebar({
   activeView,
   role,
+  displayName,
   onViewChange,
   onClose,
   onLogout,
@@ -40,7 +42,7 @@ export function AppSidebar({
         ) : null}
       </nav>
       <section className="session-panel">
-        <div><span>{isManager ? '매니저' : '직원'}</span><strong>{isManager ? 'admin' : 'redforce'}</strong></div>
+        <div><span>{isManager ? '매니저' : '직원'}</span><strong>{displayName || (isManager ? '매니저' : '직원')}</strong></div>
         <button type="button" onClick={onLogout}>로그아웃</button>
       </section>
     </aside>

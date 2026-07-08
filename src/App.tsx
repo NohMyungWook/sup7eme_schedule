@@ -53,6 +53,7 @@ export default function App() {
       <AppSidebar
         activeView={app.activeView}
         role={app.role}
+        displayName={app.displayName}
         onViewChange={(view) => {
           app.setActiveView(view);
           if (window.matchMedia('(max-width: 700px)').matches) {
@@ -128,6 +129,9 @@ export default function App() {
             onTemplateSelect={app.selectBaseShiftTemplate}
             onBaseShiftAdd={app.addBaseShift}
             onBaseShiftDelete={app.deleteBaseShift}
+            onBaseShiftEdit={app.editBaseShift}
+            onBaseShiftEditCancel={app.cancelBaseShiftEdit}
+            editingBaseShiftIds={app.editingBaseShiftIds}
           />
         ) : app.activeView === 'notes' ? (
           <NotesView
