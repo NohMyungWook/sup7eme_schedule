@@ -53,6 +53,7 @@ export default function App() {
       <AppSidebar
         activeView={app.activeView}
         role={app.role}
+        displayName={app.displayName}
         onViewChange={(view) => {
           app.setActiveView(view);
           if (window.matchMedia('(max-width: 700px)').matches) {

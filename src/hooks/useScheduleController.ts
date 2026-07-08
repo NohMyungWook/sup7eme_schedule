@@ -38,8 +38,29 @@ function loadActiveView(): ActiveView {
 
 export function useScheduleController() {
   const today = formatDate(new Date());
-  const [{ employees, shifts, notes, templates }, setSchedule] =
-    usePersistentSchedule();
+  const {
+    role,
+    displayName,
+    loginId,
+    setLoginId,
+    loginPassword,
+    setLoginPassword,
+    loginError,
+    setLoginError,
+    isAuthLoading,
+    login,
+    logout,
+  } = useAuth({
+    onLogin: () => setActiveView('schedule'),
+    onLogout: () => {
+      setActiveView('schedule');
+      setShowShiftModal(false);
+      setIsQuickShiftEntry(false);
+      setPendingEmployeeDrop(null);
+    },
+  });
+  const [{ employees, shifts, notes, templates }, setSchedule, scheduleStatus] =
+    usePersistentSchedule(role);
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
   const [storeId, setStoreId] = useState(stores[0].id);
   const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
@@ -57,25 +78,6 @@ export function useScheduleController() {
   const [pendingEmployeeDrop, setPendingEmployeeDrop] =
     useState<PendingEmployeeDrop | null>(null);
   const [shiftTimeError, setShiftTimeError] = useState('');
-  const {
-    role,
-    loginId,
-    setLoginId,
-    loginPassword,
-    setLoginPassword,
-    loginError,
-    setLoginError,
-    login,
-    logout,
-  } = useAuth({
-    onLogin: () => setActiveView('schedule'),
-    onLogout: () => {
-      setActiveView('schedule');
-      setShowShiftModal(false);
-      setIsQuickShiftEntry(false);
-      setPendingEmployeeDrop(null);
-    },
-  });
 
   const isManager = role === 'manager';
   const {
@@ -453,8 +455,9 @@ export function useScheduleController() {
   return {
     employees, shifts, notes, templates, activeView, setActiveView, storeId,
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
-    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, loginId,
+    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
+    isAuthLoading, scheduleStatus,
     days, selectedDate, setSelectedDate, draft, setDraft, editingId,
     selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
     employeeDraft, setEmployeeDraft, selectedEmployeeDraft,

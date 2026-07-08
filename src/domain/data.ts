@@ -7,9 +7,6 @@ import type {
   TemplateColor,
 } from './types';
 
-export const STORAGE_KEY = 'sup7eme-schedule-v2';
-export const SCHEDULE_DATA_VERSION = 3;
-export const SESSION_KEY = 'kingmw-session-role';
 export const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 export const templateColors: Array<{ value: TemplateColor; label: string }> = [
   { value: 'blue', label: '파랑' },
