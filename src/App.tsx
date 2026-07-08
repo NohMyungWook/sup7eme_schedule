@@ -129,6 +129,9 @@ export default function App() {
             onTemplateSelect={app.selectBaseShiftTemplate}
             onBaseShiftAdd={app.addBaseShift}
             onBaseShiftDelete={app.deleteBaseShift}
+            onBaseShiftEdit={app.editBaseShift}
+            onBaseShiftEditCancel={app.cancelBaseShiftEdit}
+            editingBaseShiftIds={app.editingBaseShiftIds}
           />
         ) : app.activeView === 'notes' ? (
           <NotesView

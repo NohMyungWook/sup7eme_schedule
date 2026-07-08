@@ -601,6 +601,16 @@ button:disabled {
   font-size: 0.74rem;
 }
 
+.base-shift-item.is-editable {
+  cursor: pointer;
+}
+
+.base-shift-item.is-editable:hover,
+.base-shift-item.is-editing {
+  border-color: #6654e8;
+  background: #f4f2ff;
+}
+
 .base-shift-item > span {
   color: #5145cd;
   font-weight: 900;
@@ -627,12 +637,42 @@ button:disabled {
   font-weight: 800;
 }
 
+.base-shift-add-open {
+  width: 100%;
+  border: 1px dashed #c7d2fe;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8f7ff;
+  color: #5743d7;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.base-shift-add-open:hover {
+  border-color: #6654e8;
+  background: #f0eeff;
+}
+
 .base-shift-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   border-top: 1px solid #edf1f7;
   padding-top: 16px;
+}
+
+.base-form-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.base-form-heading strong {
+  color: #172033;
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .base-weekday-selector {
@@ -665,6 +705,15 @@ button:disabled {
   background: #6654e8;
   color: #ffffff;
   box-shadow: 0 6px 14px rgb(102 84 232 / 20%);
+}
+
+.base-weekday-selector button.is-disabled,
+.base-weekday-selector button:disabled {
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #cbd5e1;
+  box-shadow: none;
 }
 
 .base-shift-form label,
@@ -716,12 +765,23 @@ button:disabled {
   font-size: 0.76rem;
 }
 
-.base-shift-form > button {
+.base-form-actions {
+  display: grid;
   grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.base-form-actions button {
   border-radius: 7px;
   padding: 8px;
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.base-form-actions button:not(.primary) {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .mini-shift-list {

@@ -36,6 +36,7 @@ export function useEmployeeManagement(options: Options) {
     storeIds: [...initialEmployees[0].storeIds],
   }));
   const [baseShiftDraft, setBaseShiftDraft] = useState<BaseShiftDraft>(createInitialBaseShiftDraft);
+  const [editingBaseShiftIds, setEditingBaseShiftIds] = useState<string[]>([]);
   const storeEmployees = getStoreEmployees(employees, storeId);
   const filteredEmployees = filterEmployeesByStore(employees, storeFilter);
   const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) ?? filteredEmployees[0];
@@ -124,6 +125,7 @@ export function useEmployeeManagement(options: Options) {
     setSelectedEmployeeId(employee.id);
     setSelectedEmployeeDraftState({ name: employee.name, preference: employee.preference, color: employee.color, storeIds: [...employee.storeIds] });
     setBaseShiftDraft(createInitialBaseShiftDraft());
+    setEditingBaseShiftIds([]);
     if (!employee.storeIds.includes(storeId)) setStoreId(employee.storeIds[0]);
   }
 
@@ -162,6 +164,15 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function toggleBaseShiftWeekday(weekday: number) {
+    if (selectedEmployeeBaseShifts.some((rule) =>
+      rule.weekday === weekday &&
+      rule.startTime === baseShiftDraft.startTime &&
+      rule.endTime === baseShiftDraft.endTime &&
+      !editingBaseShiftIds.includes(rule.id)
+    )) {
+      return;
+    }
+
     setBaseShiftDraft((current) => {
       const weekdays = current.weekdays.includes(weekday)
         ? current.weekdays.filter((item) => item !== weekday)
@@ -184,7 +195,20 @@ export function useEmployeeManagement(options: Options) {
   function addBaseShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isManager || !selectedEmployee || !baseShiftDraft.weekdays.length) return;
-    const newRules: BaseShiftRule[] = baseShiftDraft.weekdays.map((weekday) => ({
+    const occupiedWeekdays = new Set(
+      selectedEmployee.baseShifts
+        .filter((rule) =>
+          rule.storeId === storeId &&
+          rule.startTime === baseShiftDraft.startTime &&
+          rule.endTime === baseShiftDraft.endTime &&
+          !editingBaseShiftIds.includes(rule.id)
+        )
+        .map((rule) => rule.weekday),
+    );
+    const uniqueWeekdays = [...new Set(baseShiftDraft.weekdays)].filter((weekday) => !occupiedWeekdays.has(weekday));
+    if (!uniqueWeekdays.length) return;
+
+    const newRules: BaseShiftRule[] = uniqueWeekdays.map((weekday) => ({
       id: crypto.randomUUID(),
       storeId,
       weekday,
@@ -194,9 +218,16 @@ export function useEmployeeManagement(options: Options) {
     }));
     setSchedule((current) => ({
       ...current,
-      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: [...employee.baseShifts, ...newRules] } : employee),
+      employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? {
+        ...employee,
+        baseShifts: [
+          ...employee.baseShifts.filter((rule) => !editingBaseShiftIds.includes(rule.id)),
+          ...newRules,
+        ],
+      } : employee),
     }));
     setBaseShiftDraft(createInitialBaseShiftDraft());
+    setEditingBaseShiftIds([]);
     setGenerationMessage('');
   }
 
@@ -207,7 +238,34 @@ export function useEmployeeManagement(options: Options) {
       ...current,
       employees: current.employees.map((employee) => employee.id === selectedEmployee.id ? { ...employee, baseShifts: employee.baseShifts.filter((rule) => !deleteIds.includes(rule.id)) } : employee),
     }));
+    if (editingBaseShiftIds.some((ruleId) => deleteIds.includes(ruleId))) {
+      setBaseShiftDraft(createInitialBaseShiftDraft());
+      setEditingBaseShiftIds([]);
+    }
     setGenerationMessage('');
+  }
+
+  function editBaseShift(ruleIds: string[]) {
+    if (!isManager || !selectedEmployee) return;
+
+    const rules = selectedEmployee.baseShifts
+      .filter((rule) => ruleIds.includes(rule.id))
+      .sort((a, b) => a.weekday - b.weekday);
+    const firstRule = rules[0];
+    if (!firstRule) return;
+
+    setEditingBaseShiftIds(rules.map((rule) => rule.id));
+    setBaseShiftDraft({
+      weekdays: [...new Set(rules.map((rule) => rule.weekday))],
+      templateId: firstRule.templateId,
+      startTime: firstRule.startTime,
+      endTime: firstRule.endTime,
+    });
+  }
+
+  function cancelBaseShiftEdit() {
+    setBaseShiftDraft(createInitialBaseShiftDraft());
+    setEditingBaseShiftIds([]);
   }
 
   return {
@@ -220,6 +278,7 @@ export function useEmployeeManagement(options: Options) {
     openAddEmployee, closeEmployeeForm, deleteEmployee,
     selectManagedEmployee, toggleDraftStore, toggleSelectedEmployeeStore,
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
-    addBaseShift, deleteBaseShift,
+    addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
+    editingBaseShiftIds,
   };
 }

@@ -107,6 +107,9 @@ export function useScheduleController() {
     selectBaseShiftTemplate,
     addBaseShift,
     deleteBaseShift,
+    editBaseShift,
+    cancelBaseShiftEdit,
+    editingBaseShiftIds,
   } = useEmployeeManagement({
     employees,
     storeId,
@@ -478,7 +481,8 @@ export function useScheduleController() {
     saveSelectedEmployee, openAddEmployee, closeEmployeeForm, deleteEmployee,
     selectManagedEmployee, toggleDraftStore, toggleSelectedEmployeeStore,
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
-    addBaseShift, deleteBaseShift, saveTemplate, editTemplate,
+    addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
+    editingBaseShiftIds, saveTemplate, editTemplate,
     closeTemplateForm, deleteTemplate,
   };
 }
