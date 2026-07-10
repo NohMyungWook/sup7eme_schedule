@@ -216,7 +216,7 @@ export function useScheduleController() {
     const template = templateById(templateId, templates);
     setDraft((current) => ({
       ...current,
-      templateId,
+      templateId: template.id,
       time: template.time,
     }));
     setShiftTimeError('');
@@ -433,6 +433,11 @@ export function useScheduleController() {
     }
 
     const selectedTemplate = templateById(templateId, templates);
+    if (!templates.some((template) => template.id === selectedTemplate.id)) {
+      setPendingEmployeeDrop(null);
+      return;
+    }
+
     if (selectedTemplate.requiresTimeInput) {
       setEditingId(null);
       setDraft({

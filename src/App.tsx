@@ -14,6 +14,10 @@ export default function App() {
     window.matchMedia('(min-width: 701px)').matches,
   );
 
+  if (app.isAuthLoading) {
+    return <AppStatus message="로그인 정보를 확인하고 있습니다." />;
+  }
+
   if (!app.role) {
     return (
       <LoginPage
@@ -29,6 +33,21 @@ export default function App() {
           app.setLoginError('');
         }}
         onSubmit={app.login}
+      />
+    );
+  }
+
+  if (app.scheduleStatus.isLoading && !app.employees.length && !app.templates.length) {
+    return <AppStatus message="스케줄 데이터를 불러오고 있습니다." />;
+  }
+
+  if (app.scheduleStatus.errorMessage && !app.employees.length && !app.templates.length) {
+    return (
+      <AppStatus
+        message="스케줄 데이터를 불러오지 못했습니다."
+        detail={app.scheduleStatus.errorMessage}
+        actionLabel="로그아웃"
+        onAction={app.logout}
       />
     );
   }
@@ -208,6 +227,27 @@ export default function App() {
             onShiftSubmit={app.submitShift}
           />
         )}
+      </section>
+    </main>
+  );
+}
+
+type AppStatusProps = {
+  message: string;
+  detail?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+function AppStatus({ message, detail, actionLabel, onAction }: AppStatusProps) {
+  return (
+    <main className="login-page">
+      <section className="login-panel app-status-panel">
+        <div className="login-heading">
+          <h1>{message}</h1>
+          {detail ? <p>{detail}</p> : null}
+        </div>
+        {actionLabel && onAction ? <button type="button" onClick={onAction}>{actionLabel}</button> : null}
       </section>
     </main>
   );

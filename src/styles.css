@@ -85,6 +85,18 @@ body {
   font-weight: 800;
 }
 
+.app-status-panel {
+  gap: 14px;
+}
+
+.app-status-panel button {
+  min-height: 40px;
+  border-radius: 8px;
+  background: #172033;
+  color: #ffffff;
+  font-weight: 800;
+}
+
 button,
 input,
 select,

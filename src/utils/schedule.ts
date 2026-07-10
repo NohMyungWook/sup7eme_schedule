@@ -1,5 +1,12 @@
 import type { Employee, Shift, ShiftTemplate } from '../domain/types';
 
+const fallbackTemplate: ShiftTemplate = {
+  id: 'fallback',
+  label: '근무',
+  time: '08:00-15:00',
+  color: 'blue',
+};
+
 export function toDate(value: string) {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day, 12);
@@ -140,7 +147,7 @@ export function employeeName(id: string, employees: Employee[]) {
 }
 
 export function templateById(id: string, templates: ShiftTemplate[]) {
-  return templates.find((template) => template.id === id) ?? templates[0];
+  return templates.find((template) => template.id === id) ?? templates[0] ?? fallbackTemplate;
 }
 
 export function sortByTime(shifts: Shift[]) {

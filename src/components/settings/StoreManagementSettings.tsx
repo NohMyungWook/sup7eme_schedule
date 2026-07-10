@@ -43,7 +43,7 @@ export function StoreManagementSettings({
       store.name,
       store.address,
       store.phone,
-      ...store.tags,
+      ...(store.tags ?? []),
     ].some((value) => value.toLowerCase().includes(keyword));
   });
 
@@ -151,7 +151,7 @@ export function StoreManagementSettings({
                   <div className="store-settings-info">
                     <div><strong>{store.name}</strong><em className={store.isActive ? 'is-active' : 'is-inactive'}>{store.isActive ? '운영중' : '비활성'}</em></div>
                     <p>{store.address || '주소 미입력'}</p>
-                    <div>{store.tags.map((tag) => <small key={tag}>{tag}</small>)}</div>
+                    <div>{(store.tags ?? []).map((tag) => <small key={tag}>{tag}</small>)}</div>
                   </div>
                   <div className="store-settings-meta"><span>직원 {employeeCount}명</span></div>
                 </article>
@@ -187,7 +187,7 @@ function createStoreDraft(store?: Store): StoreDraft {
     name: store?.name ?? '',
     address: store?.address ?? '',
     phone: store?.phone ?? '',
-    tagsText: store?.tags.join(', ') ?? '',
+    tagsText: store?.tags?.join(', ') ?? '',
     memo: store?.memo ?? '',
     isActive: store?.isActive ?? true,
     color: store?.color ?? 'purple',
