@@ -12,7 +12,6 @@ export type Store = {
   name: string;
   address: string;
   phone: string;
-  tags: string[];
   memo: string;
   isActive: boolean;
   color: string;

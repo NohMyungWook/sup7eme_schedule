@@ -3444,21 +3444,6 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.store-settings-info > div:last-child {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.store-settings-info small {
-  border-radius: 6px;
-  padding: 3px 7px;
-  background: #f1efff;
-  color: #5b45e8;
-  font-size: 0.66rem;
-  font-weight: 900;
-}
-
 .store-settings-meta {
   color: #334155;
   font-size: 0.76rem;
@@ -3473,7 +3458,7 @@ textarea:focus {
 }
 
 .store-editor-panel h2 {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: #172033;
   font-size: 1.04rem;
 }
@@ -3565,6 +3550,7 @@ textarea:focus {
 .store-editor-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  margin-bottom: 16px;
   border: 1px solid #c7bfff;
   border-radius: 10px;
   overflow: hidden;
@@ -3580,10 +3566,10 @@ textarea:focus {
   border-left: 1px solid #ddd6fe;
 }
 
-.store-editor-stats span svg {
-  width: 17px;
-  height: 17px;
+.store-editor-stats span {
   color: #5b45e8;
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .store-editor-stats strong {

@@ -46,7 +46,6 @@ function normalizeScheduleState(state: Partial<ScheduleState> | undefined): Sche
       name: store.name || '이름 없음',
       address: store.address ?? '',
       phone: store.phone ?? '',
-      tags: Array.isArray(store.tags) ? store.tags.filter(Boolean) : [],
       memo: store.memo ?? '',
       isActive: store.isActive !== false,
       color: store.color || 'purple',

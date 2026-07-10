@@ -6,7 +6,6 @@ type StoreDraft = {
   name: string;
   address: string;
   phone: string;
-  tagsText: string;
   memo: string;
   isActive: boolean;
   color: string;
@@ -43,7 +42,6 @@ export function StoreManagementSettings({
       store.name,
       store.address,
       store.phone,
-      ...(store.tags ?? []),
     ].some((value) => value.toLowerCase().includes(keyword));
   });
 
@@ -107,10 +105,6 @@ export function StoreManagementSettings({
       name,
       address: draft.address.trim(),
       phone: draft.phone.trim(),
-      tags: draft.tagsText
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
       memo: draft.memo.trim(),
       isActive: draft.isActive,
       color: draft.color,
@@ -151,7 +145,6 @@ export function StoreManagementSettings({
                   <div className="store-settings-info">
                     <div><strong>{store.name}</strong><em className={store.isActive ? 'is-active' : 'is-inactive'}>{store.isActive ? '운영중' : '비활성'}</em></div>
                     <p>{store.address || '주소 미입력'}</p>
-                    <div>{(store.tags ?? []).map((tag) => <small key={tag}>{tag}</small>)}</div>
                   </div>
                   <div className="store-settings-meta"><span>직원 {employeeCount}명</span></div>
                 </article>
@@ -162,18 +155,17 @@ export function StoreManagementSettings({
         </section>
         <aside className="store-editor-panel">
           <h2>{isAddingStore ? '근무지 추가' : '근무지 수정'}</h2>
+          <div className="store-editor-stats">
+            <div><span>직원수</span><strong>{stats.employees}명</strong><small>활성 직원 기준</small></div>
+            <div><span>기본 근무</span><strong>{stats.baseShifts}개</strong><small>등록된 기본 근무</small></div>
+          </div>
           <form onSubmit={saveStore}>
             <label>근무지 이름<input value={draft.name} maxLength={20} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="사당점" required /><small>{draft.name.length} / 20</small></label>
             <label>주소<input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="서울 동작구 사당로 17, 2층" /></label>
             <label>연락처<input value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} placeholder="02-522-1234" /></label>
             <div className="store-status-field"><span>운영 상태</span><button type="button" className={draft.isActive ? 'is-on' : ''} onClick={() => setDraft((current) => ({ ...current, isActive: !current.isActive }))}><i />{draft.isActive ? '운영중' : '비활성'}</button></div>
-            <label>배지<input value={draft.tagsText} onChange={(event) => setDraft((current) => ({ ...current, tagsText: event.target.value }))} placeholder="카페, 음료, Wi-Fi" /><small>쉼표로 구분합니다.</small></label>
             <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}</div></div>
             <label>메모<textarea value={draft.memo} maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))} placeholder="매장 관련 메모를 입력해주세요." rows={5} /><small>{draft.memo.length} / 200</small></label>
-            <div className="store-editor-stats">
-              <div><span><SettingsIcon name="users" /></span><strong>{stats.employees}명</strong><small>활성 직원 기준</small></div>
-              <div><span><SettingsIcon name="calendar" /></span><strong>{stats.baseShifts}개</strong><small>등록된 기본 근무</small></div>
-            </div>
             <div className="store-editor-actions"><button type="button" onClick={resetDraft}>취소</button><button className="primary" type="submit">변경 저장</button></div>
           </form>
         </aside>
@@ -187,7 +179,6 @@ function createStoreDraft(store?: Store): StoreDraft {
     name: store?.name ?? '',
     address: store?.address ?? '',
     phone: store?.phone ?? '',
-    tagsText: store?.tags?.join(', ') ?? '',
     memo: store?.memo ?? '',
     isActive: store?.isActive ?? true,
     color: store?.color ?? 'purple',
