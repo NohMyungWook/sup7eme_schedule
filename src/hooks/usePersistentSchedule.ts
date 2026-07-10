@@ -6,6 +6,7 @@ import {
 } from '../services/scheduleApi';
 
 const emptySchedule: ScheduleState = {
+  stores: [],
   employees: [],
   shifts: [],
   notes: [],

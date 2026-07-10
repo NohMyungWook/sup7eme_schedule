@@ -26,10 +26,10 @@ export const employeeDropTemplateIds = [
 ];
 
 export const stores: Store[] = [
-  { id: 'sadang', name: '사당점' },
-  { id: 'seokchon', name: '석촌점' },
-  { id: 'gwacheon', name: '과천점' },
-  { id: 'sinchon', name: '신촌점' },
+  { id: 'sadang', name: '사당점', address: '서울 동작구 사당로 17, 2층', phone: '02-522-1234', tags: ['카페', '음료', 'Wi-Fi'], memo: '', isActive: true, color: 'purple' },
+  { id: 'seokchon', name: '석촌점', address: '서울 송파구 백제고분로 241, 1층', phone: '', tags: ['카페', '테이크아웃', 'Wi-Fi'], memo: '', isActive: true, color: 'blue' },
+  { id: 'gwacheon', name: '과천점', address: '경기 과천시 별양로 142, 1층', phone: '', tags: ['카페', '디저트'], memo: '', isActive: true, color: 'orange' },
+  { id: 'sinchon', name: '신촌점', address: '서울 서대문구 연세로 10, 3층', phone: '', tags: ['카페', '스터디룸', 'Wi-Fi'], memo: '', isActive: true, color: 'green' },
 ];
 
 export const initialEmployees: Employee[] = [

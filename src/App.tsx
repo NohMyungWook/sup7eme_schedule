@@ -78,6 +78,7 @@ export default function App() {
         {app.activeView === 'dashboard' ? (
           <DashboardView
             storeId={app.storeId}
+            stores={app.stores}
             month={app.dashboardMonth}
             employees={app.employees}
             shifts={app.shifts}
@@ -87,6 +88,9 @@ export default function App() {
           />
         ) : app.activeView === 'settings' ? (
           <SettingsView
+            stores={app.stores}
+            employees={app.employees}
+            baseShifts={app.employees.flatMap((employee) => employee.baseShifts)}
             templates={app.templates}
             draft={app.templateDraft}
             editingTemplateId={app.editingTemplateId}
@@ -95,10 +99,12 @@ export default function App() {
             onDelete={app.deleteTemplate}
             onReset={app.closeTemplateForm}
             onSubmit={app.saveTemplate}
+            onStoresChange={app.saveStores}
           />
         ) : app.activeView === 'employees' ? (
           <EmployeesView
             employees={app.employees}
+            stores={app.stores}
             filteredEmployees={app.filteredEmployees}
             selectedEmployee={app.selectedEmployee}
             selectedBaseShifts={app.selectedEmployeeBaseShifts}
@@ -136,6 +142,7 @@ export default function App() {
         ) : app.activeView === 'notes' ? (
           <NotesView
             notes={app.notes}
+            stores={app.stores}
             filteredNotes={app.filteredNotes}
             storeFilter={app.noteStoreFilter}
             memoStoreId={app.memoStoreId}
@@ -160,6 +167,7 @@ export default function App() {
         ) : (
           <ScheduleView
             storeId={app.storeId}
+            stores={app.stores}
             days={app.days}
             employees={app.employees}
             storeEmployees={app.storeEmployees}

@@ -3242,6 +3242,363 @@ textarea:focus {
   font-weight: 800;
 }
 
+.store-settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  gap: 18px;
+  align-items: start;
+}
+
+.store-settings-main,
+.store-editor-panel {
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgb(15 23 42 / 6%);
+}
+
+.store-settings-main {
+  overflow: hidden;
+}
+
+.store-settings-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid #e6ebf3;
+  padding: 12px;
+}
+
+.store-settings-toolbar label {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #dbe3ee;
+  border-radius: 9px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.store-settings-toolbar svg,
+.store-settings-icon svg,
+.store-editor-stats span svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.store-settings-toolbar svg {
+  width: 17px;
+  height: 17px;
+  color: #475569;
+}
+
+.store-settings-toolbar input {
+  min-height: 38px;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  font-size: 0.82rem;
+}
+
+.store-settings-toolbar > button {
+  flex: 0 0 auto;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.store-settings-list {
+  display: grid;
+}
+
+.store-settings-empty {
+  margin: 0;
+  padding: 34px 16px;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.store-settings-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid #edf1f7;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.store-settings-item:last-child {
+  border-bottom: 0;
+}
+
+.store-settings-item:hover,
+.store-settings-item.is-selected {
+  background: #fbfaff;
+  box-shadow: inset 3px 0 0 #6654e8;
+}
+
+.store-settings-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  border-radius: 9px;
+  place-items: center;
+}
+
+.store-settings-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.store-settings-icon.purple,
+.store-color-field button.purple {
+  background: #f1edff;
+  color: #5b45e8;
+}
+
+.store-settings-icon.blue,
+.store-color-field button.blue {
+  background: #eaf2ff;
+  color: #2563eb;
+}
+
+.store-settings-icon.green,
+.store-color-field button.green {
+  background: #e9fbf0;
+  color: #16a34a;
+}
+
+.store-settings-icon.orange,
+.store-color-field button.orange {
+  background: #fff3e7;
+  color: #f97316;
+}
+
+.store-settings-icon.red,
+.store-color-field button.red {
+  background: #fff0f5;
+  color: #e11d48;
+}
+
+.store-settings-info {
+  min-width: 0;
+}
+
+.store-settings-info > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.store-settings-info strong {
+  color: #172033;
+  font-size: 0.94rem;
+  font-weight: 900;
+}
+
+.store-settings-info em {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.store-settings-info em.is-active {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.store-settings-info em.is-inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.store-settings-info p {
+  overflow: hidden;
+  margin: 6px 0;
+  color: #475569;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-settings-info > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.store-settings-info small {
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: #f1efff;
+  color: #5b45e8;
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.store-settings-meta {
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.store-editor-panel {
+  position: sticky;
+  top: 14px;
+  padding: 18px;
+}
+
+.store-editor-panel h2 {
+  margin: 0 0 18px;
+  color: #172033;
+  font-size: 1.04rem;
+}
+
+.store-editor-panel form {
+  display: grid;
+  gap: 14px;
+}
+
+.store-editor-panel label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.store-editor-panel label small {
+  color: #64748b;
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.store-editor-panel input,
+.store-editor-panel textarea {
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.store-status-field,
+.store-color-field {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.store-status-field button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  border-radius: 999px;
+  padding: 6px 10px 6px 6px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.store-status-field button i {
+  display: block;
+  width: 28px;
+  height: 18px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  box-shadow: inset 11px 0 0 #ffffff;
+}
+
+.store-status-field button.is-on {
+  background: #f1edff;
+  color: #5743d7;
+}
+
+.store-status-field button.is-on i {
+  background: #6654e8;
+  box-shadow: inset -11px 0 0 #ffffff;
+}
+
+.store-color-field > div {
+  display: flex;
+  gap: 8px;
+}
+
+.store-color-field button {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.store-color-field button.is-selected {
+  outline: 2px solid #6654e8;
+  outline-offset: 3px;
+}
+
+.store-editor-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #c7bfff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.store-editor-stats > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+}
+
+.store-editor-stats > div + div {
+  border-left: 1px solid #ddd6fe;
+}
+
+.store-editor-stats span svg {
+  width: 17px;
+  height: 17px;
+  color: #5b45e8;
+}
+
+.store-editor-stats strong {
+  color: #5b45e8;
+  font-size: 1.3rem;
+  font-weight: 950;
+}
+
+.store-editor-stats small {
+  color: #64748b;
+  font-size: 0.68rem;
+}
+
+.store-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.store-editor-actions button {
+  border-radius: 9px;
+  padding: 10px;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
 @media (max-width: 1380px) {
   .workspace {
     grid-template-columns: 216px minmax(0, 1fr);
@@ -3323,6 +3680,10 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .store-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
   .template-settings-form {
     position: static;
   }
@@ -3332,6 +3693,7 @@ textarea:focus {
   }
 
   .employee-profile-panel,
+  .store-editor-panel,
   .memo-editor-panel {
     position: static;
   }

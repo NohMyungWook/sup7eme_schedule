@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { initialEmployees } from '../domain/data';
+import { initialEmployees, stores as fallbackStores } from '../domain/data';
 import { createInitialBaseShiftDraft, createInitialEmployeeDraft } from '../domain/drafts';
 import { filterEmployeesByStore, getStoreEmployees } from '../domain/selectors';
 import type {
@@ -10,10 +10,12 @@ import type {
   Employee,
   EmployeeDraft,
   ScheduleState,
+  Store,
 } from '../domain/types';
 
 type Options = {
   employees: Employee[];
+  stores: Store[];
   storeId: string;
   storeFilter: string;
   activeView: ActiveView;
@@ -25,7 +27,8 @@ type Options = {
 };
 
 export function useEmployeeManagement(options: Options) {
-  const { employees, storeId, storeFilter, activeView, isManager, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
+  const { employees, stores, storeId, storeFilter, activeView, isManager, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
+  const activeStores = stores.length ? stores : fallbackStores;
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(initialEmployees[0].id);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [employeeDraft, setEmployeeDraft] = useState<EmployeeDraft>(createInitialEmployeeDraft);
@@ -106,7 +109,7 @@ export function useEmployeeManagement(options: Options) {
 
   function closeEmployeeForm() {
     setShowEmployeeForm(false);
-    setEmployeeDraft(createInitialEmployeeDraft(storeId));
+    setEmployeeDraft(createInitialEmployeeDraft(storeId || activeStores[0]?.id));
   }
 
   function deleteEmployee(employee: Employee) {

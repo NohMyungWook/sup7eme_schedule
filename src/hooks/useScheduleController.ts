@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   employeeDropTemplateIds,
-  stores,
+  stores as fallbackStores,
 } from '../domain/data';
 import {
   createInitialDraft,
@@ -11,6 +11,7 @@ import type {
   DraftShift,
   PendingEmployeeDrop,
   Shift,
+  Store,
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
 import { useAuth } from './useAuth';
@@ -59,10 +60,11 @@ export function useScheduleController() {
       setPendingEmployeeDrop(null);
     },
   });
-  const [{ employees, shifts, notes, templates }, setSchedule, scheduleStatus] =
+  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus] =
     usePersistentSchedule(role);
+  const configuredStores = stores.length ? stores : fallbackStores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
-  const [storeId, setStoreId] = useState(stores[0].id);
+  const [storeId, setStoreId] = useState(fallbackStores[0].id);
   const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
   const [employeeStoreFilter, setEmployeeStoreFilter] = useState('all');
   const [noteStoreFilter, setNoteStoreFilter] = useState('all');
@@ -80,6 +82,13 @@ export function useScheduleController() {
   const [shiftTimeError, setShiftTimeError] = useState('');
 
   const isManager = role === 'manager';
+
+  useEffect(() => {
+    if (!configuredStores.some((store) => store.id === storeId)) {
+      setStoreId(configuredStores[0]?.id ?? fallbackStores[0].id);
+    }
+  }, [configuredStores, storeId]);
+
   const {
     selectedEmployeeId,
     setSelectedEmployeeId,
@@ -112,6 +121,7 @@ export function useScheduleController() {
     editingBaseShiftIds,
   } = useEmployeeManagement({
     employees,
+    stores: configuredStores,
     storeId,
     storeFilter: employeeStoreFilter,
     activeView,
@@ -153,6 +163,7 @@ export function useScheduleController() {
     resetMemoForm,
   } = useMemoManagement({
     notes,
+    stores: configuredStores,
     storeFilter: noteStoreFilter,
     isManager,
     setSchedule,
@@ -455,8 +466,16 @@ export function useScheduleController() {
     setPendingEmployeeDrop(null);
   }
 
+  function saveStores(nextStores: Store[]) {
+    if (!isManager) return;
+    setSchedule((current) => ({
+      ...current,
+      stores: nextStores,
+    }));
+  }
+
   return {
-    employees, shifts, notes, templates, activeView, setActiveView, storeId,
+    stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, storeId,
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
     setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
@@ -483,6 +502,6 @@ export function useScheduleController() {
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
     editingBaseShiftIds, saveTemplate, editTemplate,
-    closeTemplateForm, deleteTemplate,
+    closeTemplateForm, deleteTemplate, saveStores,
   };
 }

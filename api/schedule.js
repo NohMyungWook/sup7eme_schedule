@@ -31,6 +31,7 @@ export default async function handler(request, response) {
 async function fetchScheduleState() {
   const pool = getPool();
   const [
+    storesResult,
     employeesResult,
     employeeStoresResult,
     baseShiftsResult,
@@ -38,6 +39,7 @@ async function fetchScheduleState() {
     shiftsResult,
     notesResult,
   ] = await Promise.all([
+    pool.query('select id, name, address, phone, tags, memo, is_active, color from public.stores order by sort_order, name'),
     pool.query('select id, name, memo, color from public.employees where is_active = true order by created_at'),
     pool.query('select employee_id, store_id from public.employee_stores'),
     pool.query('select id, employee_id, store_id, weekday, template_id, start_time, end_time from public.employee_base_shifts order by weekday, start_time'),
@@ -50,6 +52,16 @@ async function fetchScheduleState() {
   const baseShifts = baseShiftsResult.rows;
 
   return {
+    stores: storesResult.rows.map((store) => ({
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      phone: store.phone,
+      tags: store.tags ?? [],
+      memo: store.memo,
+      isActive: store.is_active,
+      color: store.color,
+    })),
     employees: employeesResult.rows.map((employee) => ({
       id: employee.id,
       name: employee.name,
@@ -101,7 +113,7 @@ async function fetchScheduleState() {
 }
 
 async function saveScheduleState(state) {
-  if (!state || !Array.isArray(state.employees) || !Array.isArray(state.templates) || !Array.isArray(state.shifts) || !Array.isArray(state.notes)) {
+  if (!state || !Array.isArray(state.stores) || !Array.isArray(state.employees) || !Array.isArray(state.templates) || !Array.isArray(state.shifts) || !Array.isArray(state.notes)) {
     throw new Error('스케줄 데이터 형식이 올바르지 않습니다.');
   }
 
@@ -109,6 +121,7 @@ async function saveScheduleState(state) {
   try {
     await client.query('begin');
 
+    await upsertStores(client, state.stores);
     await upsertTemplates(client, state.templates);
     await upsertEmployees(client, state.employees);
     await replaceEmployeeStores(client, state.employees);
@@ -123,6 +136,40 @@ async function saveScheduleState(state) {
     throw error;
   } finally {
     client.release();
+  }
+}
+
+async function upsertStores(client, stores) {
+  for (const [index, store] of stores.entries()) {
+    await client.query(
+      `
+        insert into public.stores (
+          id, name, address, phone, tags, memo, is_active, color, sort_order
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        on conflict (id) do update
+        set
+          name = excluded.name,
+          address = excluded.address,
+          phone = excluded.phone,
+          tags = excluded.tags,
+          memo = excluded.memo,
+          is_active = excluded.is_active,
+          color = excluded.color,
+          sort_order = excluded.sort_order
+      `,
+      [
+        store.id,
+        store.name,
+        store.address ?? '',
+        store.phone ?? '',
+        store.tags ?? [],
+        store.memo ?? '',
+        store.isActive !== false,
+        store.color ?? 'purple',
+        index + 1,
+      ],
+    );
   }
 }
 

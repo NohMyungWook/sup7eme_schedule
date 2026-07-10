@@ -10,6 +10,12 @@ export type ActiveView =
 export type Store = {
   id: string;
   name: string;
+  address: string;
+  phone: string;
+  tags: string[];
+  memo: string;
+  isActive: boolean;
+  color: string;
 };
 
 export type BaseShiftRule = {
@@ -87,6 +93,7 @@ export type BaseShiftDraft = Omit<BaseShiftRule, 'id' | 'storeId' | 'weekday'> &
 };
 
 export type ScheduleState = {
+  stores: Store[];
   employees: Employee[];
   shifts: Shift[];
   notes: DayNote[];

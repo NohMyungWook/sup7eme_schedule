@@ -1,11 +1,12 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { stores, weekdays } from '../../domain/data';
+import { weekdays } from '../../domain/data';
 import { getStoreItemCount, getStoreName } from '../../domain/selectors';
 import type {
   BaseShiftDraft,
   BaseShiftRule,
   Employee,
   EmployeeDraft,
+  Store,
 } from '../../domain/types';
 import { StoreFilter } from '../common/StoreFilter';
 import { Dropdown } from '../common/Dropdown';
@@ -29,6 +30,7 @@ function baseShiftTypeLabel(templateId: string) {
 
 type EmployeesViewProps = {
   employees: Employee[];
+  stores: Store[];
   filteredEmployees: Employee[];
   selectedEmployee?: Employee;
   selectedBaseShifts: BaseShiftRule[];
@@ -62,7 +64,7 @@ type EmployeesViewProps = {
 };
 
 export function EmployeesView(props: EmployeesViewProps) {
-  const { selectedEmployee, employeeDraft, selectedEmployeeDraft, baseShiftDraft, onStoreChange, storeId } = props;
+  const { selectedEmployee, employeeDraft, selectedEmployeeDraft, baseShiftDraft, onStoreChange, storeId, stores } = props;
   const [isNameEditing, setIsNameEditing] = useState(false);
   const [isBaseShiftFormOpen, setIsBaseShiftFormOpen] = useState(false);
   const isAddingEmployee = props.showForm;
@@ -72,7 +74,7 @@ export function EmployeesView(props: EmployeesViewProps) {
   const selectedEmployeeId = selectedEmployee?.id;
   const baseStoreOptions = selectedEmployeeDraft.storeIds.map((employeeStoreId) => ({
     value: employeeStoreId,
-    label: getStoreName(employeeStoreId),
+    label: getStoreName(employeeStoreId, stores),
   }));
   const activeBaseStoreId = selectedEmployeeDraft.storeIds.includes(storeId)
     ? storeId
@@ -129,6 +131,7 @@ export function EmployeesView(props: EmployeesViewProps) {
       </header>
       <StoreFilter
         activeStoreId={props.storeFilter}
+        stores={stores}
         totalCount={props.employees.length}
         ariaLabel="매장별 직원 필터"
         getCount={(storeId) =>
@@ -145,7 +148,7 @@ export function EmployeesView(props: EmployeesViewProps) {
           {props.filteredEmployees.map((employee) => (
             <article className={`management-employee-card ${!isAddingEmployee && selectedEmployee?.id === employee.id ? 'is-selected' : ''}`} key={employee.id} onClick={() => props.onEmployeeSelect(employee)}>
               <div className="management-card-heading"><span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span><div><strong>{employee.name}</strong><small>{employee.preference}</small></div></div>
-              <div className="store-badges">{employee.storeIds.map((employeeStoreId) => <span key={employeeStoreId}>{getStoreName(employeeStoreId)}</span>)}</div>
+              <div className="store-badges">{employee.storeIds.map((employeeStoreId) => <span key={employeeStoreId}>{getStoreName(employeeStoreId, stores)}</span>)}</div>
               <div className="management-card-summary"><span>기본 근무</span><strong>{employee.baseShifts.length}건</strong></div>
             </article>
           ))}
@@ -173,7 +176,7 @@ export function EmployeesView(props: EmployeesViewProps) {
               </form>
             ) : null}
             {props.isManager ? (
-              <div className="profile-store-selector profile-store-editor"><strong>근무 가능 매장</strong><small>선택한 매장에서 근무가 가능합니다.</small><div>{stores.map((store) => <button type="button" className={activeEmployeeDraft.storeIds.includes(store.id) ? 'is-selected' : undefined} key={store.id} onClick={() => toggleActiveStore(store.id)}>{getStoreName(store.id)}</button>)}</div></div>
+              <div className="profile-store-selector profile-store-editor"><strong>근무 가능 매장</strong><small>선택한 매장에서 근무가 가능합니다.</small><div>{stores.map((store) => <button type="button" className={activeEmployeeDraft.storeIds.includes(store.id) ? 'is-selected' : undefined} key={store.id} onClick={() => toggleActiveStore(store.id)}>{getStoreName(store.id, stores)}</button>)}</div></div>
             ) : null}
             <div className="base-shift-section">
               <div className="base-shift-title"><strong>요일별 기본 근무</strong>{isAddingEmployee ? <div className="base-shift-title-spacer" aria-hidden="true" /> : <div><Dropdown value={activeBaseStoreId} options={baseStoreOptions} onChange={props.onStoreChange} ariaLabel="기본 근무 매장 선택" /><small>기준</small></div>}</div>

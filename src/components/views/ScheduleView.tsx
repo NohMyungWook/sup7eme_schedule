@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import type { DraftShift, Employee, PendingEmployeeDrop, Shift, ShiftTemplate } from '../../domain/types';
+import type { DraftShift, Employee, PendingEmployeeDrop, Shift, ShiftTemplate, Store } from '../../domain/types';
 import { dayLabel, employeeName, formatDate, formatKoreanRange, sortByTime, templateById } from '../../utils/schedule';
 import { StoreSelect } from '../common/StoreSelect';
 import { ShiftModal } from './ShiftModal';
@@ -7,6 +7,7 @@ import { EmployeeShiftPickerModal } from './EmployeeShiftPickerModal';
 
 type ScheduleViewProps = {
   storeId: string;
+  stores: Store[];
   days: string[];
   employees: Employee[];
   storeEmployees: Employee[];
@@ -49,7 +50,7 @@ export function ScheduleView(props: ScheduleViewProps) {
 
   return (
     <>
-      <header className="topbar"><StoreSelect value={props.storeId} onChange={props.onStoreChange} ariaLabel="매장 선택" /></header>
+      <header className="topbar"><StoreSelect stores={props.stores} value={props.storeId} onChange={props.onStoreChange} ariaLabel="매장 선택" /></header>
       <div className="weekbar">
         <button type="button" onClick={() => props.onMoveWeek(-1)} aria-label="이전 주"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg></button><h1>{formatKoreanRange(props.days)}</h1><button type="button" onClick={() => props.onMoveWeek(1)} aria-label="다음 주"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg></button>
         {props.isManager ? <div className="week-actions"><button type="button" onClick={props.onCopyPreviousWeek}>지난주 복사</button><button type="button" className="primary" onClick={props.onGenerateBaseWeek}>기본 주 생성</button></div> : null}
