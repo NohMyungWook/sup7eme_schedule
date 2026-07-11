@@ -1,5 +1,4 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { weekdays } from '../../domain/data';
 import { getStoreItemCount, getStoreName } from '../../domain/selectors';
 import type {
   BaseShiftDraft,
@@ -9,24 +8,9 @@ import type {
   Store,
 } from '../../domain/types';
 import { StoreFilter } from '../common/StoreFilter';
-import { Dropdown } from '../common/Dropdown';
-import { TimePicker } from '../common/TimePicker';
-
-const profileColorOptions = ['#ddd6fe', '#f9a8d4', '#fdba74', '#fde68a', '#93c5fd'];
-const baseShiftTypes = [
-  { value: 'open', label: '오전', startTime: '08:00', endTime: '15:00' },
-  { value: 'middle', label: '오후', startTime: '15:00', endTime: '22:00' },
-  { value: 'night', label: '야간', startTime: '22:00', endTime: '08:00' },
-  { value: 'custom', label: '직접 입력', startTime: '00:00', endTime: '00:00' },
-];
-
-function baseShiftTypeLabel(templateId: string) {
-  if (templateId === 'open') return '오전';
-  if (templateId === 'middle' || templateId === 'evening') return '오후';
-  if (templateId === 'night' || templateId === 'sub') return '야간';
-  if (templateId === 'custom') return '직접 입력';
-  return '직접 입력';
-}
+import { EmployeeBaseShiftSection } from './EmployeeBaseShiftSection';
+import { EmployeeCardList } from './EmployeeCardList';
+import { profileColorOptions } from './employeeViewModel';
 
 type EmployeesViewProps = {
   employees: Employee[];
@@ -66,33 +50,15 @@ type EmployeesViewProps = {
 export function EmployeesView(props: EmployeesViewProps) {
   const { selectedEmployee, employeeDraft, selectedEmployeeDraft, baseShiftDraft, onStoreChange, storeId, stores } = props;
   const [isNameEditing, setIsNameEditing] = useState(false);
-  const [isBaseShiftFormOpen, setIsBaseShiftFormOpen] = useState(false);
   const isAddingEmployee = props.showForm;
   const activeEmployeeDraft = isAddingEmployee ? employeeDraft : selectedEmployeeDraft;
   const setActiveEmployeeDraft = isAddingEmployee ? props.setEmployeeDraft : props.setSelectedEmployeeDraft;
   const toggleActiveStore = isAddingEmployee ? props.onStoreToggle : props.onSelectedStoreToggle;
   const selectedEmployeeId = selectedEmployee?.id;
-  const baseStoreOptions = selectedEmployeeDraft.storeIds.map((employeeStoreId) => ({
-    value: employeeStoreId,
-    label: getStoreName(employeeStoreId, stores),
-  }));
-  const activeBaseStoreId = selectedEmployeeDraft.storeIds.includes(storeId)
-    ? storeId
-    : selectedEmployeeDraft.storeIds[0] ?? storeId;
 
   useEffect(() => {
     setIsNameEditing(isAddingEmployee);
   }, [isAddingEmployee, selectedEmployeeId]);
-
-  useEffect(() => {
-    if (props.editingBaseShiftIds.length) {
-      setIsBaseShiftFormOpen(true);
-    }
-  }, [props.editingBaseShiftIds.length]);
-
-  useEffect(() => {
-    setIsBaseShiftFormOpen(false);
-  }, [selectedEmployeeId, storeId]);
 
   useEffect(() => {
     if (isAddingEmployee || !selectedEmployeeId || !selectedEmployeeDraft.storeIds.length) return;
@@ -100,28 +66,6 @@ export function EmployeesView(props: EmployeesViewProps) {
       onStoreChange(selectedEmployeeDraft.storeIds[0]);
     }
   }, [isAddingEmployee, onStoreChange, selectedEmployeeDraft.storeIds, selectedEmployeeId, storeId]);
-
-  const groupedBaseShifts = props.selectedBaseShifts.reduce<Array<{ key: string; ruleIds: string[]; weekdays: number[]; templateId: string; startTime: string; endTime: string }>>((groups, rule) => {
-    const key = `${rule.templateId}-${rule.startTime}-${rule.endTime}`;
-    const group = groups.find((item) => item.key === key);
-    if (group) {
-      group.ruleIds.push(rule.id);
-      group.weekdays.push(rule.weekday);
-    } else {
-      groups.push({ key, ruleIds: [rule.id], weekdays: [rule.weekday], templateId: rule.templateId, startTime: rule.startTime, endTime: rule.endTime });
-    }
-    return groups;
-  }, []).map((group) => ({ ...group, weekdays: [...new Set(group.weekdays)].sort((a, b) => a - b) }));
-  const unavailableBaseWeekdays = new Set(
-    props.selectedBaseShifts
-      .filter((rule) =>
-        rule.startTime === baseShiftDraft.startTime &&
-        rule.endTime === baseShiftDraft.endTime &&
-        !props.editingBaseShiftIds.includes(rule.id)
-      )
-      .map((rule) => rule.weekday),
-  );
-  const isBaseShiftEditing = props.editingBaseShiftIds.length > 0;
 
   return (
     <>
@@ -144,16 +88,13 @@ export function EmployeesView(props: EmployeesViewProps) {
         onChange={props.onStoreFilterChange}
       />
       <div className="employee-management-layout">
-        <section className="employee-card-grid" aria-label="직원 카드 목록">
-          {props.filteredEmployees.map((employee) => (
-            <article className={`management-employee-card ${!isAddingEmployee && selectedEmployee?.id === employee.id ? 'is-selected' : ''}`} key={employee.id} onClick={() => props.onEmployeeSelect(employee)}>
-              <div className="management-card-heading"><span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span><div><strong>{employee.name}</strong><small>{employee.preference}</small></div></div>
-              <div className="store-badges">{employee.storeIds.map((employeeStoreId) => <span key={employeeStoreId}>{getStoreName(employeeStoreId, stores)}</span>)}</div>
-              <div className="management-card-summary"><span>기본 근무</span><strong>{employee.baseShifts.length}건</strong></div>
-            </article>
-          ))}
-          {!props.filteredEmployees.length ? <p className="employee-page-empty">해당 매장에 등록된 직원이 없습니다.</p> : null}
-        </section>
+        <EmployeeCardList
+          filteredEmployees={props.filteredEmployees}
+          isAddingEmployee={isAddingEmployee}
+          selectedEmployee={selectedEmployee}
+          stores={stores}
+          onEmployeeSelect={props.onEmployeeSelect}
+        />
         {selectedEmployee || isAddingEmployee ? (
           <aside className="employee-profile-panel">
             <div className="profile-heading">
@@ -178,119 +119,25 @@ export function EmployeesView(props: EmployeesViewProps) {
             {props.isManager ? (
               <div className="profile-store-selector profile-store-editor"><strong>근무 가능 매장</strong><small>선택한 매장에서 근무가 가능합니다.</small><div>{stores.map((store) => <button type="button" className={activeEmployeeDraft.storeIds.includes(store.id) ? 'is-selected' : undefined} key={store.id} onClick={() => toggleActiveStore(store.id)}>{getStoreName(store.id, stores)}</button>)}</div></div>
             ) : null}
-            <div className="base-shift-section">
-              <div className="base-shift-title"><strong>요일별 기본 근무</strong>{isAddingEmployee ? <div className="base-shift-title-spacer" aria-hidden="true" /> : <div><Dropdown value={activeBaseStoreId} options={baseStoreOptions} onChange={props.onStoreChange} ariaLabel="기본 근무 매장 선택" /><small>기준</small></div>}</div>
-              {isAddingEmployee ? (
-                <div className="base-shift-placeholder">
-                  <p>직원 추가 후 기본 근무를 설정할 수 있습니다.</p>
-                </div>
-              ) : (
-                <>
-              <div className="base-shift-list">
-                {groupedBaseShifts.map((group) => {
-                  const isEditingGroup = group.ruleIds.some((ruleId) => props.editingBaseShiftIds.includes(ruleId));
-                  const displayWeekdays = isEditingGroup ? baseShiftDraft.weekdays : group.weekdays;
-                  const displayTemplateId = isEditingGroup ? baseShiftDraft.templateId : group.templateId;
-                  const displayStartTime = isEditingGroup ? baseShiftDraft.startTime : group.startTime;
-                  const displayEndTime = isEditingGroup ? baseShiftDraft.endTime : group.endTime;
-
-                  return (
-                    <div
-                      className={`base-shift-item ${isEditingGroup ? 'is-editing' : ''} ${props.isManager ? 'is-editable' : ''}`}
-                      key={group.key}
-                      onClick={() => {
-                        if (!props.isManager) return;
-                        if (isEditingGroup) {
-                          props.onBaseShiftEditCancel();
-                          setIsBaseShiftFormOpen(false);
-                          return;
-                        }
-                        props.onBaseShiftEdit(group.ruleIds);
-                        setIsBaseShiftFormOpen(true);
-                      }}
-                      role={props.isManager ? 'button' : undefined}
-                      tabIndex={props.isManager ? 0 : undefined}
-                      onKeyDown={(event) => {
-                        if (!props.isManager) return;
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          if (isEditingGroup) {
-                            props.onBaseShiftEditCancel();
-                            setIsBaseShiftFormOpen(false);
-                            return;
-                          }
-                          props.onBaseShiftEdit(group.ruleIds);
-                          setIsBaseShiftFormOpen(true);
-                        }
-                      }}
-                    >
-                      <span>{displayWeekdays.map((weekday) => weekdays[weekday]).join(', ')}</span>
-                      <strong>{baseShiftTypeLabel(displayTemplateId)}</strong>
-                      <small>{displayStartTime}-{displayEndTime}</small>
-                      {props.isManager ? <button type="button" onClick={(event) => { event.stopPropagation(); props.onBaseShiftDelete(group.ruleIds); }}>삭제</button> : null}
-                    </div>
-                  );
-                })}
-                {!groupedBaseShifts.length ? <p>이 매장의 기본 근무정보가 없습니다.</p> : null}
-              </div>
-              {props.isManager && !isBaseShiftFormOpen ? (
-                <button
-                  className="base-shift-add-open"
-                  type="button"
-                  onClick={() => {
-                    props.onBaseShiftEditCancel();
-                    setIsBaseShiftFormOpen(true);
-                  }}
-                >
-                  + 기본근무 추가하기
-                </button>
-              ) : null}
-              {props.isManager && isBaseShiftFormOpen ? (
-                <form
-                  className="base-shift-form profile-base-form"
-                  onSubmit={(event) => {
-                    props.onBaseShiftAdd(event);
-                    setIsBaseShiftFormOpen(false);
-                  }}
-                >
-                  <div className="base-form-heading">
-                    <strong>{isBaseShiftEditing ? '기본 근무 수정' : '기본 근무 추가'}</strong>
-                  </div>
-                  <div className="base-weekday-selector"><span>요일 선택</span><div>{weekdays.map((weekday, index) => {
-                    const isUnavailable = unavailableBaseWeekdays.has(index);
-
-                    return (
-                      <button
-                        type="button"
-                        key={weekday}
-                        className={`${baseShiftDraft.weekdays.includes(index) ? 'is-selected' : ''} ${isUnavailable ? 'is-disabled' : ''}`}
-                        onClick={() => props.onBaseShiftWeekdayToggle(index)}
-                        disabled={isUnavailable}
-                      >
-                        {weekday}
-                      </button>
-                    );
-                  })}</div></div>
-                  <div className="base-shift-type-selector"><span>근무 유형</span><div>{baseShiftTypes.map((type) => <button type="button" key={type.value} className={baseShiftDraft.templateId === type.value ? 'is-selected' : undefined} onClick={() => props.onTemplateSelect(type.value)}>{type.label}</button>)}</div></div>
-                  <label>시작 시간<TimePicker value={baseShiftDraft.startTime} onChange={(startTime) => props.setBaseShiftDraft((current) => ({ ...current, startTime }))} ariaLabel="기본 근무 시작 시간" /></label>
-                  <label>종료 시간<TimePicker value={baseShiftDraft.endTime} onChange={(endTime) => props.setBaseShiftDraft((current) => ({ ...current, endTime }))} ariaLabel="기본 근무 종료 시간" /></label>
-                  <div className="base-form-actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        props.onBaseShiftEditCancel();
-                        setIsBaseShiftFormOpen(false);
-                      }}
-                    >
-                      취소
-                    </button>
-                    <button className="primary" type="submit" disabled={!baseShiftDraft.weekdays.length}>{isBaseShiftEditing ? '기본 근무 저장' : '기본 근무 추가'}</button>
-                  </div>
-                </form>
-              ) : null}
-                </>
-              )}
-            </div>
+            <EmployeeBaseShiftSection
+              baseShiftDraft={baseShiftDraft}
+              editingBaseShiftIds={props.editingBaseShiftIds}
+              isAddingEmployee={isAddingEmployee}
+              isManager={props.isManager}
+              selectedBaseShifts={props.selectedBaseShifts}
+              selectedEmployeeId={selectedEmployeeId}
+              selectedStoreIds={selectedEmployeeDraft.storeIds}
+              storeId={storeId}
+              stores={stores}
+              setBaseShiftDraft={props.setBaseShiftDraft}
+              onBaseShiftAdd={props.onBaseShiftAdd}
+              onBaseShiftDelete={props.onBaseShiftDelete}
+              onBaseShiftEdit={props.onBaseShiftEdit}
+              onBaseShiftEditCancel={props.onBaseShiftEditCancel}
+              onBaseShiftWeekdayToggle={props.onBaseShiftWeekdayToggle}
+              onStoreChange={props.onStoreChange}
+              onTemplateSelect={props.onTemplateSelect}
+            />
             {props.isManager ? <div className="profile-edit-actions"><button className="danger" type="button" onClick={() => isAddingEmployee ? props.onFormClose() : selectedEmployee && props.onEmployeeDelete(selectedEmployee)}>{isAddingEmployee ? '취소' : '직원 삭제'}</button><button className="primary" type="submit" form="selected-employee-form" disabled={!activeEmployeeDraft.name.trim() || !activeEmployeeDraft.storeIds.length}>{isAddingEmployee ? '직원 추가' : '저장'}</button></div> : null}
           </aside>
         ) : null}
