@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import type { BaseShiftRule, Employee, ShiftTemplate, Store, TemplateDraft } from '../../domain/types';
+import { AccountManagementSettings } from '../settings/AccountManagementSettings';
 import { SettingsOverview } from '../settings/SettingsOverview';
 import { StoreManagementSettings } from '../settings/StoreManagementSettings';
 import { TimeTemplateSettings } from '../settings/TimeTemplateSettings';
@@ -32,7 +33,7 @@ export function SettingsView({
   onSubmit,
   onStoresChange,
 }: SettingsViewProps) {
-  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates' | 'stores'>('overview');
+  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates' | 'stores' | 'accounts'>('overview');
 
   if (activeSettingsPanel === 'overview') {
     return (
@@ -41,6 +42,7 @@ export function SettingsView({
         templates={templates}
         onTemplateSettingsOpen={() => setActiveSettingsPanel('templates')}
         onStoreSettingsOpen={() => setActiveSettingsPanel('stores')}
+        onAccountSettingsOpen={() => setActiveSettingsPanel('accounts')}
       />
     );
   }
@@ -53,6 +55,15 @@ export function SettingsView({
         baseShifts={baseShifts}
         onBack={() => setActiveSettingsPanel('overview')}
         onStoresChange={onStoresChange}
+      />
+    );
+  }
+
+  if (activeSettingsPanel === 'accounts') {
+    return (
+      <AccountManagementSettings
+        stores={stores}
+        onBack={() => setActiveSettingsPanel('overview')}
       />
     );
   }

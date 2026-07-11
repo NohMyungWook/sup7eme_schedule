@@ -122,7 +122,7 @@ export function StoreManagementSettings({
   return (
     <>
       <header className="settings-detail-header">
-        <button type="button" onClick={onBack}>‹ 설정</button>
+        <button className="settings-back-button" type="button" onClick={onBack}>← 설정으로 돌아가기</button>
         <div><h1>근무지 관리</h1><p>매장 정보와 운영 상태, 주소, 근무 가능 여부를 관리합니다.</p></div>
       </header>
       <div className="store-settings-layout">
