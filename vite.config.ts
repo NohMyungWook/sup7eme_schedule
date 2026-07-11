@@ -33,12 +33,12 @@ export default defineConfig({
         const scheduleHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/schedule.js')).href;
 
         server.middlewares.use('/api/login', async (request, response) => {
-          const { default: handler } = await import(loginHandlerUrl);
+          const { default: handler } = await import(`${loginHandlerUrl}?t=${Date.now()}`);
           await handler(request, response);
         });
 
         server.middlewares.use('/api/schedule', async (request, response) => {
-          const { default: handler } = await import(scheduleHandlerUrl);
+          const { default: handler } = await import(`${scheduleHandlerUrl}?t=${Date.now()}`);
           await handler(request, response);
         });
       },
