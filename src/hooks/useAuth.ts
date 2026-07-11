@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Role } from '../domain/types';
+import { loginToApi } from '../services/authApi';
 
 const SESSION_KEY = 'sup7eme-session';
 
@@ -32,17 +33,15 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     event.preventDefault();
     setLoginError('');
 
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: loginId.trim(),
-        password: loginPassword,
-      }),
-    });
-    const payload = await parseJson(response);
+    let payload;
+    try {
+      payload = await loginToApi(loginId.trim(), loginPassword);
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : '아이디 또는 비밀번호가 올바르지 않습니다.');
+      return;
+    }
 
-    if (!response.ok || !payload.user) {
+    if (!payload.user) {
       setLoginError(payload.message ?? '아이디 또는 비밀번호가 올바르지 않습니다.');
       return;
     }
@@ -108,12 +107,4 @@ function saveSession(session: StoredSession) {
 
 function clearSession() {
   sessionStorage.removeItem(SESSION_KEY);
-}
-
-async function parseJson(response: Response) {
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
 }

@@ -27,7 +27,10 @@ export function TimeTemplateSettings({
 }: TimeTemplateSettingsProps) {
   return (
     <>
-      <header className="time-settings-header"><button className="settings-back-button" type="button" onClick={onBack}>설정</button><span>/</span><strong>시간대 설정</strong><h1>시간대 설정</h1><p>스케줄에서 사용하는 시간대와 기본 색상을 관리합니다.</p></header>
+      <header className="settings-detail-header">
+        <button className="settings-back-button" type="button" onClick={onBack}>← 설정으로 돌아가기</button>
+        <div><h1>시간대 설정</h1><p>스케줄에서 사용하는 시간대와 기본 색상을 관리합니다.</p></div>
+      </header>
       <div className="template-settings-layout">
         <section className="template-settings-list-panel">
           <div className="template-settings-toolbar">

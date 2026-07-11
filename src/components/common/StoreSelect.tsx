@@ -1,13 +1,15 @@
-import { stores } from '../../domain/data';
+import { stores as fallbackStores } from '../../domain/data';
+import type { Store } from '../../domain/types';
 import { Dropdown } from './Dropdown';
 
 type StoreSelectProps = {
+  stores?: Store[];
   value: string;
   onChange: (storeId: string) => void;
   ariaLabel?: string;
 };
 
-export function StoreSelect({ value, onChange, ariaLabel }: StoreSelectProps) {
+export function StoreSelect({ stores = fallbackStores, value, onChange, ariaLabel }: StoreSelectProps) {
   return (
     <Dropdown
       value={value}

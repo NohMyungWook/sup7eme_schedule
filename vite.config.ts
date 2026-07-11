@@ -29,8 +29,14 @@ export default defineConfig({
       name: 'local-serverless-api',
       configureServer(server) {
         loadServerEnv();
+        const accountsHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/accounts.js')).href;
         const loginHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/login.js')).href;
         const scheduleHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/schedule.js')).href;
+
+        server.middlewares.use('/api/accounts', async (request, response) => {
+          const { default: handler } = await import(accountsHandlerUrl);
+          await handler(request, response);
+        });
 
         server.middlewares.use('/api/login', async (request, response) => {
           const { default: handler } = await import(loginHandlerUrl);

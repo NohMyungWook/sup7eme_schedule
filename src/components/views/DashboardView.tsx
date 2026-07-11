@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { weekdays } from '../../domain/data';
 import { getStoreEmployees, getStoreName, getStoreShifts } from '../../domain/selectors';
-import type { Employee, Shift } from '../../domain/types';
+import type { Employee, Shift, Store } from '../../domain/types';
 import {
   coverageGaps,
   fullDateLabel,
@@ -14,6 +14,7 @@ import { StoreSelect } from '../common/StoreSelect';
 
 type DashboardViewProps = {
   storeId: string;
+  stores: Store[];
   month: string;
   employees: Employee[];
   shifts: Shift[];
@@ -24,6 +25,7 @@ type DashboardViewProps = {
 
 export function DashboardView({
   storeId,
+  stores,
   month,
   employees,
   shifts,
@@ -56,7 +58,7 @@ export function DashboardView({
       <header className="dashboard-header">
         <div><h1>월간 대시보드</h1><p>근무시간과 비어 있는 운영 시간대를 월 단위로 확인합니다.</p></div>
         <div className="dashboard-controls">
-          <label>매장<StoreSelect value={storeId} onChange={onStoreChange} /></label>
+          <label>매장<StoreSelect stores={stores} value={storeId} onChange={onStoreChange} /></label>
           <label>조회 월<input type="month" value={month} onChange={(event) => onMonthChange(event.target.value)} /></label>
         </div>
       </header>
@@ -68,7 +70,7 @@ export function DashboardView({
       </section>
       <div className="dashboard-main-grid">
         <section className="dashboard-panel employee-hours-panel">
-          <div className="dashboard-panel-title"><div><h2>직원별 이번 달 근무시간</h2><p>{getStoreName(storeId)} 배치 기준</p></div></div>
+          <div className="dashboard-panel-title"><div><h2>직원별 이번 달 근무시간</h2><p>{getStoreName(storeId, stores)} 배치 기준</p></div></div>
           <div className="employee-hours-list">
             {employeeHours.map(({ employee, minutes }) => {
               const maxMinutes = employeeHours[0]?.minutes || 1;

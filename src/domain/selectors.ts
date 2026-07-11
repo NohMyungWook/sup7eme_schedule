@@ -1,8 +1,8 @@
 import { stores } from './data';
-import type { DayNote, Employee, Shift } from './types';
+import type { DayNote, Employee, Shift, Store } from './types';
 
-export function getStoreName(storeId: string) {
-  return stores.find((store) => store.id === storeId)?.name ?? storeId;
+export function getStoreName(storeId: string, storeList: Store[] = stores) {
+  return storeList.find((store) => store.id === storeId)?.name ?? storeId;
 }
 
 export function getStoreEmployees(employees: Employee[], storeId: string) {

@@ -1,9 +1,14 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import type { ShiftTemplate, TemplateDraft } from '../../domain/types';
+import type { BaseShiftRule, Employee, ShiftTemplate, Store, TemplateDraft } from '../../domain/types';
+import { AccountManagementSettings } from '../settings/AccountManagementSettings';
 import { SettingsOverview } from '../settings/SettingsOverview';
+import { StoreManagementSettings } from '../settings/StoreManagementSettings';
 import { TimeTemplateSettings } from '../settings/TimeTemplateSettings';
 
 type SettingsViewProps = {
+  stores: Store[];
+  employees: Employee[];
+  baseShifts: BaseShiftRule[];
   templates: ShiftTemplate[];
   draft: TemplateDraft;
   editingTemplateId: string | null;
@@ -12,9 +17,13 @@ type SettingsViewProps = {
   onDelete: (templateId: string) => void;
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onStoresChange: (stores: Store[]) => void;
 };
 
 export function SettingsView({
+  stores,
+  employees,
+  baseShifts,
   templates,
   draft,
   editingTemplateId,
@@ -22,14 +31,39 @@ export function SettingsView({
   onEdit,
   onReset,
   onSubmit,
+  onStoresChange,
 }: SettingsViewProps) {
-  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates'>('overview');
+  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates' | 'stores' | 'accounts'>('overview');
 
   if (activeSettingsPanel === 'overview') {
     return (
       <SettingsOverview
+        stores={stores}
         templates={templates}
         onTemplateSettingsOpen={() => setActiveSettingsPanel('templates')}
+        onStoreSettingsOpen={() => setActiveSettingsPanel('stores')}
+        onAccountSettingsOpen={() => setActiveSettingsPanel('accounts')}
+      />
+    );
+  }
+
+  if (activeSettingsPanel === 'stores') {
+    return (
+      <StoreManagementSettings
+        stores={stores}
+        employees={employees}
+        baseShifts={baseShifts}
+        onBack={() => setActiveSettingsPanel('overview')}
+        onStoresChange={onStoresChange}
+      />
+    );
+  }
+
+  if (activeSettingsPanel === 'accounts') {
+    return (
+      <AccountManagementSettings
+        stores={stores}
+        onBack={() => setActiveSettingsPanel('overview')}
       />
     );
   }

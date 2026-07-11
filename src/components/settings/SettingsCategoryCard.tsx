@@ -8,6 +8,7 @@ type SettingsCategoryCardProps = {
   description: string;
   tags: string[];
   tone?: SettingsTone;
+  onOpen?: () => void;
 };
 
 export function SettingsCategoryCard({
@@ -16,6 +17,7 @@ export function SettingsCategoryCard({
   description,
   tags,
   tone = 'purple',
+  onOpen,
 }: SettingsCategoryCardProps) {
   return (
     <article className="settings-category-card">
@@ -24,7 +26,7 @@ export function SettingsCategoryCard({
         <div><h2>{title}</h2><p>{description}</p></div>
       </header>
       <div className={`settings-card-tags ${tone}`}>{tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-      <button type="button">관리하기 <span>›</span></button>
+      <button type="button" onClick={onOpen}>관리하기 <span>›</span></button>
     </article>
   );
 }

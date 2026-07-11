@@ -6,6 +6,7 @@ import { EmployeesView } from './components/views/EmployeesView';
 import { NotesView } from './components/views/NotesView';
 import { ScheduleView } from './components/views/ScheduleView';
 import { SettingsView } from './components/views/SettingsView';
+import type { ActiveView, Role } from './domain/types';
 import { useScheduleController } from './hooks/useScheduleController';
 
 export default function App() {
@@ -13,6 +14,10 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
     window.matchMedia('(min-width: 701px)').matches,
   );
+
+  if (app.isAuthLoading) {
+    return <AppStatus message="로그인 정보를 확인하고 있습니다." />;
+  }
 
   if (!app.role) {
     return (
@@ -29,6 +34,17 @@ export default function App() {
           app.setLoginError('');
         }}
         onSubmit={app.login}
+      />
+    );
+  }
+
+  if (app.scheduleStatus.errorMessage && !app.employees.length && !app.templates.length) {
+    return (
+      <AppStatus
+        message="스케줄 데이터를 불러오지 못했습니다."
+        detail={app.scheduleStatus.errorMessage}
+        actionLabel="로그아웃"
+        onAction={app.logout}
       />
     );
   }
@@ -50,6 +66,17 @@ export default function App() {
         }
       }}
     >
+      <header className="mobile-top-nav" aria-label="모바일 상단 메뉴">
+        <span aria-hidden="true" />
+        <strong>KingMW</strong>
+        <button
+          type="button"
+          aria-label={isSidebarOpen ? '메뉴 닫기' : '메뉴 열기'}
+          onClick={() => setIsSidebarOpen((current) => !current)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+      </header>
       <AppSidebar
         activeView={app.activeView}
         role={app.role}
@@ -63,7 +90,19 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
         onLogout={app.logout}
       />
-      {isSidebarOpen ? <button className="sidebar-backdrop" type="button" aria-label="사이드바 닫기" onClick={() => setIsSidebarOpen(false)} /> : <button className="sidebar-open-button" type="button" aria-label="사이드바 열기" onClick={() => setIsSidebarOpen(true)}><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg></button>}
+      {isSidebarOpen ? <button className="sidebar-backdrop" type="button" aria-label="메뉴 닫기" onClick={() => setIsSidebarOpen(false)} /> : <button className="sidebar-open-button" type="button" aria-label="메뉴 열기" onClick={() => setIsSidebarOpen(true)}><svg className="sidebar-open-desktop-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg><svg className="sidebar-open-mobile-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>}
+      {isSidebarOpen ? (
+        <MobileNavMenu
+          activeView={app.activeView}
+          role={app.role}
+          displayName={app.displayName}
+          onViewChange={(view) => {
+            app.setActiveView(view);
+            setIsSidebarOpen(false);
+          }}
+          onLogout={app.logout}
+        />
+      ) : null}
       <section
         className={`main-board ${
           app.activeView === 'dashboard'
@@ -78,6 +117,7 @@ export default function App() {
         {app.activeView === 'dashboard' ? (
           <DashboardView
             storeId={app.storeId}
+            stores={app.stores}
             month={app.dashboardMonth}
             employees={app.employees}
             shifts={app.shifts}
@@ -87,6 +127,9 @@ export default function App() {
           />
         ) : app.activeView === 'settings' ? (
           <SettingsView
+            stores={app.stores}
+            employees={app.employees}
+            baseShifts={app.employees.flatMap((employee) => employee.baseShifts)}
             templates={app.templates}
             draft={app.templateDraft}
             editingTemplateId={app.editingTemplateId}
@@ -95,10 +138,12 @@ export default function App() {
             onDelete={app.deleteTemplate}
             onReset={app.closeTemplateForm}
             onSubmit={app.saveTemplate}
+            onStoresChange={app.saveStores}
           />
         ) : app.activeView === 'employees' ? (
           <EmployeesView
             employees={app.employees}
+            stores={app.stores}
             filteredEmployees={app.filteredEmployees}
             selectedEmployee={app.selectedEmployee}
             selectedBaseShifts={app.selectedEmployeeBaseShifts}
@@ -136,6 +181,7 @@ export default function App() {
         ) : app.activeView === 'notes' ? (
           <NotesView
             notes={app.notes}
+            stores={app.stores}
             filteredNotes={app.filteredNotes}
             storeFilter={app.noteStoreFilter}
             memoStoreId={app.memoStoreId}
@@ -160,6 +206,7 @@ export default function App() {
         ) : (
           <ScheduleView
             storeId={app.storeId}
+            stores={app.stores}
             days={app.days}
             employees={app.employees}
             storeEmployees={app.storeEmployees}
@@ -200,6 +247,76 @@ export default function App() {
             onShiftSubmit={app.submitShift}
           />
         )}
+      </section>
+    </main>
+  );
+}
+
+type MobileNavMenuProps = {
+  activeView: ActiveView;
+  role: Role;
+  displayName: string;
+  onViewChange: (view: ActiveView) => void;
+  onLogout: () => void;
+};
+
+function MobileNavMenu({
+  activeView,
+  role,
+  displayName,
+  onViewChange,
+  onLogout,
+}: MobileNavMenuProps) {
+  const isManager = role === 'manager';
+  const navItems: Array<{ view: ActiveView; label: string; managerOnly?: boolean }> = [
+    { view: 'dashboard', label: '대시보드', managerOnly: true },
+    { view: 'schedule', label: '스케줄' },
+    { view: 'employees', label: '직원', managerOnly: true },
+    { view: 'notes', label: '메모', managerOnly: true },
+    { view: 'settings', label: '설정', managerOnly: true },
+  ];
+
+  return (
+    <nav className="mobile-nav-menu" aria-label="모바일 메뉴">
+      <div className="mobile-nav-session">
+        <span>{isManager ? '매니저' : '직원'}</span>
+        <strong>{displayName || (isManager ? '매니저' : '직원')}</strong>
+      </div>
+      <div className="mobile-nav-list">
+        {navItems
+          .filter((item) => !item.managerOnly || isManager)
+          .map((item) => (
+            <button
+              type="button"
+              className={activeView === item.view ? 'is-active' : undefined}
+              key={item.view}
+              onClick={() => onViewChange(item.view)}
+            >
+              {item.label}
+            </button>
+          ))}
+      </div>
+      <button className="mobile-nav-logout" type="button" onClick={onLogout}>로그아웃</button>
+    </nav>
+  );
+}
+
+type AppStatusProps = {
+  message: string;
+  detail?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+function AppStatus({ message, detail, actionLabel, onAction }: AppStatusProps) {
+  return (
+    <main className="login-page">
+      <section className="login-panel app-status-panel">
+        <div className="login-heading">
+          <h1>{message}</h1>
+          {detail ? <p>{detail}</p> : null}
+        </div>
+        {actionLabel && onAction ? <button type="button" onClick={onAction}>{actionLabel}</button> : null}
       </section>
     </main>
   );
