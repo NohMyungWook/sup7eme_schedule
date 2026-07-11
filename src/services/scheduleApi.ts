@@ -1,38 +1,27 @@
 import { stores as fallbackStores } from '../domain/data';
 import type { ScheduleState, TemplateColor } from '../domain/types';
+import { apiRequest } from './apiClient';
+
+type SchedulePayload = {
+  state?: Partial<ScheduleState>;
+};
 
 export async function fetchScheduleState(): Promise<ScheduleState> {
-  const response = await fetch('/api/schedule');
-  const payload = await parseJson(response);
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? '스케줄 정보를 불러오지 못했습니다.');
-  }
+  const payload = await apiRequest<SchedulePayload>('/api/schedule', {
+    errorMessage: '스케줄 정보를 불러오지 못했습니다.',
+  });
 
   return normalizeScheduleState(payload.state);
 }
 
 export async function saveScheduleStateToApi(state: ScheduleState) {
-  const response = await fetch('/api/schedule', {
+  const payload = await apiRequest<SchedulePayload>('/api/schedule', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ state }),
+    body: { state },
+    errorMessage: '스케줄 정보를 저장하지 못했습니다.',
   });
-  const payload = await parseJson(response);
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? '스케줄 정보를 저장하지 못했습니다.');
-  }
 
   return normalizeScheduleState(payload.state);
-}
-
-async function parseJson(response: Response) {
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
 }
 
 function normalizeScheduleState(state: Partial<ScheduleState> | undefined): ScheduleState {

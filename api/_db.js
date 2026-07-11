@@ -12,6 +12,9 @@ export function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.SUPABASE_DB_URL,
+      max: 2,
+      idleTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 5_000,
       ssl: { rejectUnauthorized: false },
     });
   }

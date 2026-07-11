@@ -15,7 +15,7 @@ export default async function handler(request, response) {
 
     const { rows } = await getPool().query(
       `
-        select username, display_name, role
+        select id, username, display_name, role
         from public.app_users
         where username = $1
           and password_hash = crypt($2, password_hash)
@@ -30,6 +30,11 @@ export default async function handler(request, response) {
       sendJson(response, 401, { message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
       return;
     }
+
+    await getPool().query(
+      'update public.app_users set last_signed_in_at = now() where id = $1',
+      [user.id],
+    );
 
     sendJson(response, 200, {
       user: {
