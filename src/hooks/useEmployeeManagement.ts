@@ -14,12 +14,14 @@ import type {
 } from '../domain/types';
 
 type Options = {
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   employees: Employee[];
   stores: Store[];
   storeId: string;
   storeFilter: string;
   activeView: ActiveView;
-  isManager: boolean;
   setStoreId: (storeId: string) => void;
   setDraft: Dispatch<SetStateAction<DraftShift>>;
   setSchedule: Dispatch<SetStateAction<ScheduleState>>;
@@ -27,7 +29,7 @@ type Options = {
 };
 
 export function useEmployeeManagement(options: Options) {
-  const { employees, stores, storeId, storeFilter, activeView, isManager, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
+  const { employees, stores, storeId, storeFilter, activeView, canCreate, canDelete, canUpdate, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
   const activeStores = stores.length ? stores : fallbackStores;
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(initialEmployees[0].id);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
@@ -66,7 +68,7 @@ export function useEmployeeManagement(options: Options) {
 
   function saveEmployee(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager) return;
+    if (!canCreate) return;
     const name = employeeDraft.name.trim();
     if (!name || !employeeDraft.storeIds.length) return;
 
@@ -84,7 +86,7 @@ export function useEmployeeManagement(options: Options) {
 
   function saveSelectedEmployee(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager || !selectedEmployee) return;
+    if (!canUpdate || !selectedEmployee) return;
     const name = selectedEmployeeDraft.name.trim();
     if (!name || !selectedEmployeeDraft.storeIds.length) return;
 
@@ -103,6 +105,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function openAddEmployee() {
+    if (!canCreate) return;
     setEmployeeDraft(createInitialEmployeeDraft(storeFilter === 'all' ? storeId : storeFilter));
     setShowEmployeeForm(true);
   }
@@ -113,7 +116,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function deleteEmployee(employee: Employee) {
-    if (!isManager || !window.confirm(`${employee.name} 직원을 삭제할까요? 등록된 모든 근무 일정도 함께 삭제됩니다.`)) return;
+    if (!canDelete || !window.confirm(`${employee.name} 직원을 삭제할까요? 등록된 모든 근무 일정도 함께 삭제됩니다.`)) return;
     setSchedule((current) => ({
       ...current,
       employees: current.employees.filter((item) => item.id !== employee.id),
@@ -133,10 +136,12 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function toggleDraftStore(nextStoreId: string) {
+    if (!canCreate) return;
     setEmployeeDraft((current) => ({ ...current, storeIds: current.storeIds.includes(nextStoreId) ? current.storeIds.filter((id) => id !== nextStoreId) : [...current.storeIds, nextStoreId] }));
   }
 
   const setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>> = (nextDraft) => {
+    if (!canUpdate) return;
     setSelectedEmployeeDraftState((currentDraft) => {
       const resolvedDraft = typeof nextDraft === 'function' ? nextDraft(currentDraft) : nextDraft;
       if (selectedEmployeeId) {
@@ -157,6 +162,7 @@ export function useEmployeeManagement(options: Options) {
   };
 
   function toggleSelectedEmployeeStore(nextStoreId: string) {
+    if (!canUpdate) return;
     setSelectedEmployeeDraft((current) => {
       const storeIds = current.storeIds.includes(nextStoreId)
         ? current.storeIds.filter((id) => id !== nextStoreId)
@@ -167,6 +173,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function toggleBaseShiftWeekday(weekday: number) {
+    if (!(editingBaseShiftIds.length ? canUpdate : canCreate)) return;
     if (selectedEmployeeBaseShifts.some((rule) =>
       rule.weekday === weekday &&
       rule.startTime === baseShiftDraft.startTime &&
@@ -185,6 +192,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function selectBaseShiftTemplate(templateId: string) {
+    if (!(editingBaseShiftIds.length ? canUpdate : canCreate)) return;
     const timeByTemplateId: Record<string, { startTime: string; endTime: string }> = {
       open: { startTime: '08:00', endTime: '15:00' },
       middle: { startTime: '15:00', endTime: '22:00' },
@@ -197,7 +205,7 @@ export function useEmployeeManagement(options: Options) {
 
   function addBaseShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager || !selectedEmployee || !baseShiftDraft.weekdays.length) return;
+    if (!(editingBaseShiftIds.length ? canUpdate : canCreate) || !selectedEmployee || !baseShiftDraft.weekdays.length) return;
     const occupiedWeekdays = new Set(
       selectedEmployee.baseShifts
         .filter((rule) =>
@@ -235,7 +243,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function deleteBaseShift(ruleIds: string | string[]) {
-    if (!isManager || !selectedEmployee) return;
+    if (!canDelete || !selectedEmployee) return;
     const deleteIds = Array.isArray(ruleIds) ? ruleIds : [ruleIds];
     setSchedule((current) => ({
       ...current,
@@ -249,7 +257,7 @@ export function useEmployeeManagement(options: Options) {
   }
 
   function editBaseShift(ruleIds: string[]) {
-    if (!isManager || !selectedEmployee) return;
+    if (!canUpdate || !selectedEmployee) return;
 
     const rules = selectedEmployee.baseShifts
       .filter((rule) => ruleIds.includes(rule.id))

@@ -5,14 +5,16 @@ import type { DayNote, ScheduleState, Store } from '../domain/types';
 import { formatDate } from '../utils/schedule';
 
 type UseMemoManagementOptions = {
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   notes: DayNote[];
   stores: Store[];
   storeFilter: string;
-  isManager: boolean;
   setSchedule: Dispatch<SetStateAction<ScheduleState>>;
 };
 
-export function useMemoManagement({ notes, stores, storeFilter, isManager, setSchedule }: UseMemoManagementOptions) {
+export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDelete, canUpdate, setSchedule }: UseMemoManagementOptions) {
   const activeStores = stores.length ? stores : fallbackStores;
   const filteredNotes = filterNotesByStore(notes, storeFilter);
   const [memoStoreId, setMemoStoreId] = useState(activeStores[0].id);
@@ -22,7 +24,7 @@ export function useMemoManagement({ notes, stores, storeFilter, isManager, setSc
 
   function saveMemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager || !memoText.trim()) return;
+    if ((editingMemoKey ? !canUpdate : !canCreate) || !memoText.trim()) return;
     setSchedule((current) => ({
       ...current,
       notes: [
@@ -39,6 +41,7 @@ export function useMemoManagement({ notes, stores, storeFilter, isManager, setSc
   }
 
   function editMemo(note: DayNote) {
+    if (!canUpdate) return;
     setMemoStoreId(note.storeId);
     setMemoDate(note.date);
     setMemoText(note.text);
@@ -46,7 +49,7 @@ export function useMemoManagement({ notes, stores, storeFilter, isManager, setSc
   }
 
   function deleteMemo(note: DayNote) {
-    if (!isManager) return;
+    if (!canDelete) return;
     setSchedule((current) => ({
       ...current,
       notes: current.notes.filter(

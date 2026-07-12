@@ -24,7 +24,9 @@ type ScheduleViewProps = {
   showModal: boolean;
   isQuickShiftEntry: boolean;
   timeError: string;
-  isManager: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   selectedEmployeeId?: string;
   setDraft: Dispatch<SetStateAction<DraftShift>>;
   setSelectedDate: (date: string) => void;
@@ -65,7 +67,7 @@ export function ScheduleView(props: ScheduleViewProps) {
       <header className="topbar"><StoreSelect stores={props.stores} value={props.storeId} onChange={props.onStoreChange} ariaLabel="매장 선택" /></header>
       <div className="weekbar">
         <button type="button" onClick={() => props.onMoveWeek(-1)} aria-label="이전 주"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg></button><h1>{formatKoreanRange(props.days)}</h1><button type="button" onClick={() => props.onMoveWeek(1)} aria-label="다음 주"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg></button>
-        {props.isManager ? <div className="week-actions"><button type="button" onClick={props.onCopyPreviousWeek}>지난주 복사</button><button type="button" className="primary" onClick={props.onGenerateBaseWeek}>기본 주 생성</button></div> : null}
+        {props.canCreate ? <div className="week-actions"><button type="button" onClick={props.onCopyPreviousWeek}>지난주 복사</button><button type="button" className="primary" onClick={props.onGenerateBaseWeek}>기본 주 생성</button></div> : null}
       </div>
       {props.generationMessage ? <p className="generation-message" role="status">{props.generationMessage}</p> : null}
       <div className="schedule-scroll"><section className="schedule-grid" aria-label="주간 스케줄">
@@ -88,16 +90,16 @@ export function ScheduleView(props: ScheduleViewProps) {
                 {dayShifts.map((shift) => {
                   const template = templateById(shift.templateId, props.templates);
                   const name = employeeName(shift.employeeId, props.employees);
-                  return <article className={`shift-card ${template.color} ${props.draggingShiftId === shift.id ? 'is-dragging' : ''}`} draggable={props.isManager} key={shift.id} onDragEnd={() => props.setDraggingShiftId(null)} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-kingmw-shift', shift.id); props.setDraggingShiftId(shift.id); }}><button className="shift-card-main" type="button" aria-label={`${name} ${shift.time}${shift.note ? `, ${shift.note}` : ''}`} title={shift.note || undefined} onClick={(event) => { event.stopPropagation(); props.onShiftEdit(shift); }}><strong>{name}</strong><span>{shift.time}</span></button></article>;
+                  return <article className={`shift-card ${template.color} ${props.draggingShiftId === shift.id ? 'is-dragging' : ''}`} draggable={props.canUpdate} key={shift.id} onDragEnd={() => props.setDraggingShiftId(null)} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-kingmw-shift', shift.id); props.setDraggingShiftId(shift.id); }}><button className="shift-card-main" type="button" aria-label={`${name} ${shift.time}${shift.note ? `, ${shift.note}` : ''}`} title={shift.note || undefined} onClick={(event) => { event.stopPropagation(); if (props.canUpdate || props.canDelete) props.onShiftEdit(shift); }}><strong>{name}</strong><span>{shift.time}</span></button></article>;
                 })}
               </div>
             </article>
           );
         })}
       </section></div>
-      {props.isManager ? <ScheduleEmployeePool employees={props.storeEmployees} selectedEmployeeId={props.selectedEmployeeId} onEmployeeSelect={props.onEmployeeSelect} onTouchDragStart={setTouchEmployeeId} onTouchDragEnd={handleEmployeeTouchEnd} /> : null}
-      {props.pendingEmployeeDrop && props.isManager ? <EmployeeShiftPickerModal employeeName={employeeName(props.pendingEmployeeDrop.employeeId, props.employees)} date={props.pendingEmployeeDrop.date} templates={props.dragTemplates} onSelect={props.onDropTemplateSelect} onClose={props.onDropPickerClose} /> : null}
-      {props.showModal && props.isManager ? <ShiftModal compact={props.isQuickShiftEntry} days={props.days} employees={props.storeEmployees} templates={props.templates} draft={props.draft} editingId={props.editingId} timeError={props.timeError} setDraft={props.setDraft} onTemplateSelect={props.onTemplateSelect} onTimeChange={props.onTimeChange} onDelete={props.onShiftDelete} onClose={props.onModalClose} onSubmit={props.onShiftSubmit} /> : null}
+      {props.canCreate ? <ScheduleEmployeePool employees={props.storeEmployees} selectedEmployeeId={props.selectedEmployeeId} onEmployeeSelect={props.onEmployeeSelect} onTouchDragStart={setTouchEmployeeId} onTouchDragEnd={handleEmployeeTouchEnd} /> : null}
+      {props.pendingEmployeeDrop && props.canCreate ? <EmployeeShiftPickerModal employeeName={employeeName(props.pendingEmployeeDrop.employeeId, props.employees)} date={props.pendingEmployeeDrop.date} templates={props.dragTemplates} onSelect={props.onDropTemplateSelect} onClose={props.onDropPickerClose} /> : null}
+      {props.showModal && (props.canCreate || props.canUpdate || props.canDelete) ? <ShiftModal compact={props.isQuickShiftEntry} days={props.days} employees={props.storeEmployees} templates={props.templates} draft={props.draft} editingId={props.editingId} canDelete={props.canDelete} canSubmit={props.editingId ? props.canUpdate : props.canCreate} timeError={props.timeError} setDraft={props.setDraft} onTemplateSelect={props.onTemplateSelect} onTimeChange={props.onTimeChange} onDelete={props.onShiftDelete} onClose={props.onModalClose} onSubmit={props.onShiftSubmit} /> : null}
     </>
   );
 }

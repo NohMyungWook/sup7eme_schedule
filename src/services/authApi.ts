@@ -1,4 +1,4 @@
-import type { Role } from '../domain/types';
+import type { AccountPermissions, Role } from '../domain/types';
 import { apiRequest } from './apiClient';
 
 type LoginPayload = {
@@ -6,6 +6,7 @@ type LoginPayload = {
     username: string;
     displayName?: string;
     role: Role;
+    permissions?: Partial<AccountPermissions>;
   };
   message?: string;
 };

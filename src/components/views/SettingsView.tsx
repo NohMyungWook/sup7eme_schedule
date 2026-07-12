@@ -12,6 +12,9 @@ type SettingsViewProps = {
   templates: ShiftTemplate[];
   draft: TemplateDraft;
   editingTemplateId: string | null;
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onEdit: (template: ShiftTemplate) => void;
   onDelete: (templateId: string) => void;
@@ -27,6 +30,9 @@ export function SettingsView({
   templates,
   draft,
   editingTemplateId,
+  canCreate,
+  canDelete,
+  canUpdate,
   setDraft,
   onEdit,
   onReset,
@@ -62,6 +68,8 @@ export function SettingsView({
   if (activeSettingsPanel === 'accounts') {
     return (
       <AccountManagementSettings
+        canCreate={canCreate}
+        canUpdate={canUpdate}
         stores={stores}
         onBack={() => setActiveSettingsPanel('overview')}
       />
@@ -73,6 +81,9 @@ export function SettingsView({
       templates={templates}
       draft={draft}
       editingTemplateId={editingTemplateId}
+      canCreate={canCreate}
+      canDelete={canDelete}
+      canUpdate={canUpdate}
       setDraft={setDraft}
       onBack={() => setActiveSettingsPanel('overview')}
       onEdit={onEdit}

@@ -13,10 +13,12 @@ import {
 } from './accountSettingsModel';
 
 type UseAccountManagementOptions = {
+  canCreate: boolean;
+  canUpdate: boolean;
   stores: Store[];
 };
 
-export function useAccountManagement({ stores }: UseAccountManagementOptions) {
+export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccountManagementOptions) {
   const [accounts, setAccounts] = useState<AppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [draft, setDraft] = useState(() => createAccountDraft());
@@ -80,6 +82,7 @@ export function useAccountManagement({ stores }: UseAccountManagementOptions) {
   }
 
   function openNewAccount() {
+    if (!canCreate) return;
     setSelectedAccountId('');
     setDraft(createAccountDraft(undefined, stores));
     setMessage('');
@@ -88,6 +91,7 @@ export function useAccountManagement({ stores }: UseAccountManagementOptions) {
   async function submitAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage('');
+    if (draft.id ? !canUpdate : !canCreate) return;
 
     try {
       const nextAccounts = await saveAccount(draft);
@@ -109,6 +113,8 @@ export function useAccountManagement({ stores }: UseAccountManagementOptions) {
     menu: AccountPermissionMenu,
     action: AccountPermissionAction,
   ) {
+    if (!canUpdate && draft.id) return;
+    if (!canCreate && !draft.id) return;
     setDraft((current) => ({
       ...current,
       permissions: {
@@ -122,6 +128,7 @@ export function useAccountManagement({ stores }: UseAccountManagementOptions) {
   }
 
   function toggleStore(storeId: string) {
+    if (draft.id ? !canUpdate : !canCreate) return;
     setDraft((current) => ({
       ...current,
       storeIds: current.storeIds.includes(storeId)
@@ -131,6 +138,7 @@ export function useAccountManagement({ stores }: UseAccountManagementOptions) {
   }
 
   function toggleAllStores() {
+    if (draft.id ? !canUpdate : !canCreate) return;
     setDraft((current) => ({
       ...current,
       storeIds: stores.length && !stores.every((store) => current.storeIds.includes(store.id))
