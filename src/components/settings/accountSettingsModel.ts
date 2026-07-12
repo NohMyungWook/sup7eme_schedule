@@ -39,7 +39,6 @@ export const roleLabels: Record<AccountRole, string> = {
 export const statusLabels: Record<AccountStatus, string> = {
   active: '활성',
   inactive: '비활성',
-  invited: '초대 대기',
 };
 
 export function createAccountDraft(
@@ -56,13 +55,11 @@ export function createAccountDraft(
       id: '',
       username: '',
       displayName: '',
-      email: '',
       role: 'manager',
-      status: 'invited',
+      status: 'active',
       storeIds: stores.length ? [] : [],
       permissions: clonePermissions(defaultManagerPermissions),
       lastSignedInAt: null,
-      invitedAt: null,
       password: '',
     };
 }

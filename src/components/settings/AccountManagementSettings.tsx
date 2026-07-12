@@ -56,7 +56,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
               <button type="button" className={activeTab === 'accounts' ? 'is-active' : undefined} onClick={() => setActiveTab('accounts')}>관리자 계정</button>
               <button type="button" className={activeTab === 'groups' ? 'is-active' : undefined} onClick={() => setActiveTab('groups')}>권한 그룹</button>
             </div>
-            <button className="primary" type="button" onClick={openNewAccount} disabled={!canCreate}>+ 관리자 초대</button>
+            <button className="primary" type="button" onClick={openNewAccount} disabled={!canCreate}>+ 관리자 추가</button>
           </div>
           <div className="account-summary-strip">
             <span>전체 {accounts.length}명</span>
@@ -65,7 +65,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
           </div>
           <div className="account-table" role="table" aria-label="계정 목록">
             <div className="account-table-head" role="row">
-              <span>이름</span><span>이메일</span><span>역할</span><span>담당 매장</span><span>최근 접속</span><span>상태</span>
+              <span>이름</span><span>아이디</span><span>역할</span><span>담당 매장</span><span>최근 접속</span><span>상태</span>
             </div>
             {isLoading ? <p className="account-empty">계정 정보를 불러오고 있습니다.</p> : null}
             {!isLoading && !filteredAccounts.length ? <p className="account-empty">검색 결과가 없습니다.</p> : null}
@@ -77,7 +77,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
                 onClick={() => selectAccount(account)}
               >
                 <span className="account-name"><strong>{account.displayName}</strong></span>
-                <span>{account.email || '-'}</span>
+                <span>{account.username}</span>
                 <span><em className={`account-role ${account.role}`}>{roleLabels[account.role]}</em></span>
                 <span>{getStoreSummary(account.storeIds, stores)}</span>
                 <span>{formatRelative(account.lastSignedInAt)}</span>
@@ -89,11 +89,10 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
         </section>
         <aside className="account-editor-panel">
           <form onSubmit={submitAccount}>
-            <header><h2>{draft.id ? '권한 수정' : '관리자 초대'}</h2><button type="button" onClick={onBack} aria-label="닫기">×</button></header>
+            <header><h2>{draft.id ? '권한 수정' : '관리자 추가'}</h2><button type="button" onClick={onBack} aria-label="닫기">×</button></header>
             <div className="account-editor-grid">
               <label>이름<input value={draft.displayName} onChange={(event) => setDraft((current) => ({ ...current, displayName: event.target.value }))} disabled={!canEditDraft} required /></label>
               <label>아이디<input value={draft.username} onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))} disabled={!canEditDraft} required /></label>
-              <label>이메일<input value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} disabled={!canEditDraft} placeholder="admin@kingmw.com" /></label>
               {!draft.id ? <label>초기 비밀번호<input value={draft.password ?? ''} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} disabled={!canEditDraft} placeholder="미입력 시 아이디와 동일" /></label> : null}
             </div>
             <label className="account-select-field">역할<select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as AccountRole }))} disabled={!canEditDraft}><option value="manager">관리자</option><option value="viewer">조회 전용</option></select><small>{draft.role === 'manager' ? '스케줄과 설정을 수정할 수 있습니다.' : '스케줄 조회 중심 권한입니다.'}</small></label>
@@ -126,11 +125,6 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
                 <strong>계정 상태</strong>
                 <button type="button" className={`account-status-toggle ${draft.status === 'active' ? 'is-on' : ''}`} onClick={() => setDraft((current) => ({ ...current, status: current.status === 'active' ? 'inactive' : 'active' }))} disabled={!canEditDraft}><i />{draft.status === 'active' ? '활성' : '비활성'}</button>
                 <small>비활성화하면 로그인할 수 없습니다.</small>
-              </section>
-              <section className="account-invite-field">
-                <strong>초대 메일</strong>
-                <button type="button" disabled>재전송</button>
-                <small>메일 발송 기능은 추후 연동 예정입니다.</small>
               </section>
             </div>
             {message ? <p className={message.includes('저장') ? 'account-message' : 'account-message is-error'}>{message}</p> : null}

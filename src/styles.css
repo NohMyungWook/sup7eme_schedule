@@ -773,6 +773,7 @@ button {
 }
 
 .main-board {
+  position: relative;
   min-width: 0;
   padding: 14px 12px 24px;
   overflow: hidden;
@@ -1148,10 +1149,16 @@ button {
 .settings-detail-header {
   display: grid;
   gap: 12px;
+  min-height: 42px;
   margin-bottom: 20px;
+  padding-top: 64px;
+  padding-right: 310px;
 }
 
 .settings-back-button {
+  position: absolute;
+  top: 26px;
+  left: 12px;
   justify-self: start;
   border: 1px solid #dbe3ee;
   border-radius: 9px;
@@ -1161,6 +1168,10 @@ button {
   font-size: 0.8rem;
   font-weight: 850;
   box-shadow: 0 8px 22px rgb(15 23 42 / 5%);
+}
+
+.settings-detail-header > div {
+  margin-top: 4px;
 }
 
 .settings-back-button:hover {
@@ -1498,13 +1509,14 @@ button {
 }
 
 .template-color-field {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   margin: 0;
   border: 1px solid #dbe3ee;
   border-radius: 8px;
-  padding: 9px;
+  padding: 12px 13px;
 }
 
 .template-color-field legend {
@@ -1515,26 +1527,78 @@ button {
 }
 
 .template-color-field label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid;
-  border-radius: 6px;
-  padding: 6px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  flex: 0 0 auto;
 }
 
-.template-color-field input {
-  width: auto;
+.template-color-swatch {
+  position: relative;
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  place-items: center;
+}
+
+.template-color-swatch input {
+  position: absolute;
+  inset: 0;
   margin: 0;
-  accent-color: #6654e8;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.template-color-swatch span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.template-color-swatch.is-selected {
+  outline: 2px solid #6654e8;
+  outline-offset: 3px;
+}
+
+.template-color-swatch.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.template-color-swatch.is-disabled input {
+  cursor: not-allowed;
+}
+
+.template-color-swatch.blue span {
+  background: #6aa7ef;
+}
+
+.template-color-swatch.green span {
+  background: #49c270;
+}
+
+.template-color-swatch.orange span {
+  background: #f59b57;
+}
+
+.template-color-swatch.purple span {
+  background: #8b6df0;
+}
+
+.template-color-swatch.navy span {
+  background: #416adf;
+}
+
+.template-color-swatch.red span {
+  background: #ec6b7f;
 }
 
 .template-color-field .template-rainbow-picker {
-  justify-content: center;
   border-color: #dbe3ee;
-  padding: 0;
+  padding: 0 !important;
 }
 
 .template-preview {
@@ -3971,11 +4035,6 @@ textarea:focus {
   color: #64748b;
 }
 
-.account-status.invited {
-  background: #fff7ed;
-  color: #ea580c;
-}
-
 .account-empty {
   margin: 0;
   border: 1px solid #e6ebf3;
@@ -4075,8 +4134,7 @@ textarea:focus {
 
 .account-select-field small,
 .account-store-field small,
-.account-active-field small,
-.account-invite-field small {
+.account-active-field small {
   color: #64748b;
   font-size: 0.7rem;
   font-weight: 750;
@@ -4210,21 +4268,19 @@ textarea:focus {
 
 .account-bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
   border-top: 1px solid #e6ebf3;
   padding-top: 14px;
 }
 
-.account-active-field,
-.account-invite-field {
+.account-active-field {
   display: grid;
   gap: 8px;
   align-content: start;
 }
 
-.account-active-field strong,
-.account-invite-field strong {
+.account-active-field strong {
   color: #172033;
   font-size: 0.78rem;
 }
@@ -4270,15 +4326,6 @@ textarea:focus {
 .account-status-toggle:disabled {
   opacity: 0.58;
   cursor: not-allowed;
-}
-
-.account-invite-field button {
-  border-radius: 7px;
-  padding: 8px 10px;
-  background: #eefbf1;
-  color: #16a34a;
-  font-size: 0.76rem;
-  font-weight: 900;
 }
 
 .account-message {
@@ -4456,6 +4503,16 @@ textarea:focus {
 
   .app-user-chip {
     display: none;
+  }
+
+  .settings-detail-header {
+    min-height: 0;
+    padding-top: 0;
+    padding-right: 0;
+  }
+
+  .settings-back-button {
+    position: static;
   }
 
   .mobile-top-nav strong {

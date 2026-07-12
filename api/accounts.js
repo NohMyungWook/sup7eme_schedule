@@ -36,12 +36,10 @@ async function fetchAccounts() {
       user_account.id,
       user_account.username,
       user_account.display_name,
-      user_account.email,
       user_account.role,
       user_account.status,
       user_account.is_active,
       user_account.last_signed_in_at,
-      user_account.invited_at,
       coalesce(
         array_agg(user_store.store_id order by user_store.store_id)
           filter (where user_store.store_id is not null),
@@ -69,15 +67,14 @@ async function createAccount(account) {
     const { rows } = await client.query(
       `
         insert into public.app_users (
-          username, display_name, email, password_hash, role, status, is_active, invited_at
+          username, display_name, password_hash, role, status, is_active
         )
-        values ($1, $2, $3, crypt($4, gen_salt('bf')), $5, $6, $7, now())
-        returning id, username, display_name, email, role, status, is_active, last_signed_in_at, invited_at
+        values ($1, $2, crypt($3, gen_salt('bf')), $4, $5, $6)
+        returning id, username, display_name, role, status, is_active, last_signed_in_at
       `,
       [
         nextAccount.username,
         nextAccount.displayName,
-        nextAccount.email,
         nextAccount.password || nextAccount.username,
         nextAccount.role,
         nextAccount.status,
@@ -108,18 +105,16 @@ async function updateAccount(account) {
         set
           username = $2,
           display_name = $3,
-          email = $4,
-          role = $5,
-          status = $6,
-          is_active = $7
+          role = $4,
+          status = $5,
+          is_active = $6
         where id = $1
-        returning id, username, display_name, email, role, status, is_active, last_signed_in_at, invited_at
+        returning id, username, display_name, role, status, is_active, last_signed_in_at
       `,
       [
         nextAccount.id,
         nextAccount.username,
         nextAccount.displayName,
-        nextAccount.email,
         nextAccount.role,
         nextAccount.status,
         nextAccount.status === 'active',
@@ -170,9 +165,8 @@ function normalizeAccount(account, requireId = false) {
 
   const username = String(account.username ?? '').trim();
   const displayName = String(account.displayName ?? '').trim();
-  const email = String(account.email ?? '').trim();
   const role = account.role === 'viewer' ? 'viewer' : 'manager';
-  const status = ['active', 'inactive', 'invited'].includes(account.status) ? account.status : 'active';
+  const status = ['active', 'inactive'].includes(account.status) ? account.status : 'active';
   const id = String(account.id ?? '').trim();
 
   if (requireId && !id) throw new Error('계정 ID가 필요합니다.');
@@ -182,7 +176,6 @@ function normalizeAccount(account, requireId = false) {
     id,
     username,
     displayName,
-    email,
     role,
     status,
     password: String(account.password ?? ''),
@@ -200,12 +193,10 @@ function mapAccount(row) {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    email: row.email ?? '',
     role: row.role,
     status,
     storeIds: row.store_ids ?? [],
     permissions: normalizePermissions(row.permissions),
     lastSignedInAt: row.last_signed_in_at ? row.last_signed_in_at.toISOString?.() ?? row.last_signed_in_at : null,
-    invitedAt: row.invited_at ? row.invited_at.toISOString?.() ?? row.invited_at : null,
   };
 }

@@ -142,23 +142,7 @@ export function useEmployeeManagement(options: Options) {
 
   const setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>> = (nextDraft) => {
     if (!canUpdate) return;
-    setSelectedEmployeeDraftState((currentDraft) => {
-      const resolvedDraft = typeof nextDraft === 'function' ? nextDraft(currentDraft) : nextDraft;
-      if (selectedEmployeeId) {
-        setSchedule((current) => ({
-          ...current,
-          employees: current.employees.map((employee) => employee.id !== selectedEmployeeId ? employee : {
-            ...employee,
-            name: resolvedDraft.name,
-            preference: resolvedDraft.preference,
-            color: resolvedDraft.color,
-            storeIds: resolvedDraft.storeIds,
-            baseShifts: employee.baseShifts.filter((rule) => resolvedDraft.storeIds.includes(rule.storeId)),
-          }),
-        }));
-      }
-      return resolvedDraft;
-    });
+    setSelectedEmployeeDraftState(nextDraft);
   };
 
   function toggleSelectedEmployeeStore(nextStoreId: string) {

@@ -1,5 +1,5 @@
-import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import type { BaseShiftRule, Employee, ShiftTemplate, Store, TemplateDraft } from '../../domain/types';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
+import type { BaseShiftRule, Employee, SettingsPanel, ShiftTemplate, Store, TemplateDraft } from '../../domain/types';
 import { AccountManagementSettings } from '../settings/AccountManagementSettings';
 import { SettingsOverview } from '../settings/SettingsOverview';
 import { StoreManagementSettings } from '../settings/StoreManagementSettings';
@@ -15,7 +15,9 @@ type SettingsViewProps = {
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
+  activeSettingsPanel: SettingsPanel;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
+  setActiveSettingsPanel: (panel: SettingsPanel) => void;
   onEdit: (template: ShiftTemplate) => void;
   onDelete: (templateId: string) => void;
   onReset: () => void;
@@ -33,14 +35,14 @@ export function SettingsView({
   canCreate,
   canDelete,
   canUpdate,
+  activeSettingsPanel,
   setDraft,
+  setActiveSettingsPanel,
   onEdit,
   onReset,
   onSubmit,
   onStoresChange,
 }: SettingsViewProps) {
-  const [activeSettingsPanel, setActiveSettingsPanel] = useState<'overview' | 'templates' | 'stores' | 'accounts'>('overview');
-
   if (activeSettingsPanel === 'overview') {
     return (
       <SettingsOverview

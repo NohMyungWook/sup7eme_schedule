@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   stores as fallbackStores,
 } from '../domain/data';
 import { hasPermission } from '../domain/permissions';
 import type {
   ActiveView,
+  SettingsPanel,
   Store,
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
@@ -24,10 +25,18 @@ import {
 
 const ACTIVE_VIEW_SESSION_KEY = 'kingmw-active-view';
 const activeViews: ActiveView[] = ['dashboard', 'schedule', 'employees', 'notes', 'settings'];
+const settingsPanels: SettingsPanel[] = ['overview', 'templates', 'stores', 'accounts'];
 
 function loadActiveView(): ActiveView {
+  const routeView = getRouteView();
+  if (routeView) return routeView;
+
   const savedView = sessionStorage.getItem(ACTIVE_VIEW_SESSION_KEY);
   return activeViews.includes(savedView as ActiveView) ? savedView as ActiveView : 'schedule';
+}
+
+function loadActiveSettingsPanel(): SettingsPanel {
+  return getRouteSettingsPanel() ?? 'overview';
 }
 
 export function useScheduleController() {
@@ -58,6 +67,9 @@ export function useScheduleController() {
     usePersistentSchedule(role);
   const configuredStores = stores.length ? stores : fallbackStores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
+  const [activeSettingsPanel, setActiveSettingsPanel] = useState<SettingsPanel>(loadActiveSettingsPanel);
+  const syncedRouteKeyRef = useRef<string | null>(null);
+  const isInitialRouteSyncRef = useRef(true);
   const [storeId, setStoreId] = useState(fallbackStores[0].id);
   const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
   const [employeeStoreFilter, setEmployeeStoreFilter] = useState('all');
@@ -221,6 +233,41 @@ export function useScheduleController() {
   }, [activeView]);
 
   useEffect(() => {
+    function handlePopState() {
+      const nextRoute = getRouteState();
+      syncedRouteKeyRef.current = routeKey(nextRoute.activeView, nextRoute.activeSettingsPanel);
+      setActiveView(nextRoute.activeView);
+      setActiveSettingsPanel(nextRoute.activeSettingsPanel);
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const currentRouteKey = routeKey(activeView, activeSettingsPanel);
+
+    if (syncedRouteKeyRef.current === currentRouteKey) {
+      syncedRouteKeyRef.current = null;
+      return;
+    }
+
+    const nextUrl = createRouteUrl(activeView, activeSettingsPanel);
+
+    if (isInitialRouteSyncRef.current) {
+      if (nextUrl !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+        window.history.replaceState(null, '', nextUrl);
+      }
+      isInitialRouteSyncRef.current = false;
+      return;
+    }
+
+    if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+
+    window.history.pushState(null, '', nextUrl);
+  }, [activeSettingsPanel, activeView]);
+
+  useEffect(() => {
     if (activeView === 'schedule' && scheduleSelectedEmployee) {
       setSelectedEmployeeId(scheduleSelectedEmployee.id);
       setDraft((current) => ({
@@ -309,7 +356,8 @@ export function useScheduleController() {
   }
 
   return {
-    stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, storeId,
+    stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, activeSettingsPanel,
+    setActiveSettingsPanel, storeId,
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
     setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, permissions, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
@@ -344,4 +392,44 @@ export function useScheduleController() {
     editingBaseShiftIds, saveTemplate, editTemplate,
     closeTemplateForm, deleteTemplate, saveStores,
   };
+}
+
+function getRouteState(): { activeView: ActiveView; activeSettingsPanel: SettingsPanel } {
+  return {
+    activeView: getRouteView() ?? loadSavedView(),
+    activeSettingsPanel: getRouteSettingsPanel() ?? 'overview',
+  };
+}
+
+function loadSavedView(): ActiveView {
+  const savedView = sessionStorage.getItem(ACTIVE_VIEW_SESSION_KEY);
+  return activeViews.includes(savedView as ActiveView) ? savedView as ActiveView : 'schedule';
+}
+
+function getRouteView(): ActiveView | null {
+  const view = new URLSearchParams(window.location.search).get('view');
+  return activeViews.includes(view as ActiveView) ? view as ActiveView : null;
+}
+
+function getRouteSettingsPanel(): SettingsPanel | null {
+  const panel = new URLSearchParams(window.location.search).get('panel');
+  return settingsPanels.includes(panel as SettingsPanel) ? panel as SettingsPanel : null;
+}
+
+function routeKey(activeView: ActiveView, activeSettingsPanel: SettingsPanel) {
+  return `${activeView}:${activeView === 'settings' ? activeSettingsPanel : 'overview'}`;
+}
+
+function createRouteUrl(activeView: ActiveView, activeSettingsPanel: SettingsPanel) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('view', activeView);
+
+  if (activeView === 'settings' && activeSettingsPanel !== 'overview') {
+    params.set('panel', activeSettingsPanel);
+  } else {
+    params.delete('panel');
+  }
+
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
 }
