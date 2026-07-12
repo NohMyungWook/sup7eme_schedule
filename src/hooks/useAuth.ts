@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { defaultPermissionsForRole, normalizeAccountPermissions } from '../domain/permissions';
 import type { AccountPermissions, Role } from '../domain/types';
-import { loginToApi } from '../services/authApi';
+import { loginToApi, logoutFromApi } from '../services/authApi';
 
 const SESSION_KEY = 'sup7eme-session';
 
@@ -71,6 +71,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   }
 
   function logout() {
+    void logoutFromApi().catch(() => undefined);
     clearSession();
     setRole(null);
     setDisplayName('');
