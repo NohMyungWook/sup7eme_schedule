@@ -87,6 +87,7 @@ export default function App() {
           settings: app.canViewSettings,
         }}
         onViewChange={(view) => {
+          if (view === 'settings') app.setActiveSettingsPanel('overview');
           app.setActiveView(view);
           if (window.matchMedia('(max-width: 700px)').matches) {
             setIsSidebarOpen(false);
@@ -108,6 +109,7 @@ export default function App() {
           }}
           displayName={app.displayName}
           onViewChange={(view) => {
+            if (view === 'settings') app.setActiveSettingsPanel('overview');
             app.setActiveView(view);
             setIsSidebarOpen(false);
           }}
@@ -155,7 +157,9 @@ export default function App() {
             canCreate={app.canCreateSettings}
             canUpdate={app.canUpdateSettings}
             canDelete={app.canDeleteSettings}
+            activeSettingsPanel={app.activeSettingsPanel}
             setDraft={app.setTemplateDraft}
+            setActiveSettingsPanel={app.setActiveSettingsPanel}
             onEdit={app.editTemplate}
             onDelete={app.deleteTemplate}
             onReset={app.closeTemplateForm}

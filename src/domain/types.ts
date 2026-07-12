@@ -7,6 +7,12 @@ export type ActiveView =
   | 'notes'
   | 'settings';
 
+export type SettingsPanel =
+  | 'overview'
+  | 'templates'
+  | 'stores'
+  | 'accounts';
+
 export type Store = {
   id: string;
   name: string;
