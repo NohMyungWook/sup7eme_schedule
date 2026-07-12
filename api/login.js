@@ -1,17 +1,17 @@
-import { getPool, readJsonBody, requireMethod, sendJson } from './_db.js';
+import { clearAuthCookie, getPool, normalizePermissions, readJsonBody, requireMethod, sendJson, setAuthCookie } from './_db.js';
 
-const defaultPermissions = {
-  dashboard: { view: true, create: true, update: true, delete: true },
-  schedule: { view: true, create: true, update: true, delete: true },
-  employees: { view: true, create: true, update: true, delete: true },
-  notes: { view: true, create: true, update: true, delete: true },
-  settings: { view: true, create: true, update: true, delete: true },
-};
+const defaultPermissions = normalizePermissions();
 
 export default async function handler(request, response) {
-  if (!requireMethod(request, response, ['POST'])) return;
+  if (!requireMethod(request, response, ['POST', 'DELETE'])) return;
 
   try {
+    if (request.method === 'DELETE') {
+      clearAuthCookie(response);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
     const body = await readJsonBody(request);
     const username = String(body.username ?? '').trim();
     const password = String(body.password ?? '');
@@ -50,6 +50,7 @@ export default async function handler(request, response) {
       'update public.app_users set last_signed_in_at = now() where id = $1',
       [user.id],
     );
+    setAuthCookie(response, user.id);
 
     sendJson(response, 200, {
       user: {
@@ -60,19 +61,7 @@ export default async function handler(request, response) {
       },
     });
   } catch (error) {
-    sendJson(response, 500, { message: error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.' });
+    console.error(error);
+    sendJson(response, 500, { message: '로그인 중 오류가 발생했습니다.' });
   }
-}
-
-function normalizePermissions(permissions) {
-  const result = structuredClone(defaultPermissions);
-  if (!permissions || typeof permissions !== 'object') return result;
-
-  for (const menu of Object.keys(result)) {
-    for (const action of Object.keys(result[menu])) {
-      result[menu][action] = Boolean(permissions[menu]?.[action]);
-    }
-  }
-
-  return result;
 }

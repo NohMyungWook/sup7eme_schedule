@@ -1,5 +1,5 @@
 type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   errorMessage: string;
 };
@@ -7,6 +7,7 @@ type ApiRequestOptions = {
 export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
   const response = await fetch(path, {
     method: options.method ?? 'GET',
+    credentials: 'same-origin',
     headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
