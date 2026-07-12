@@ -4,11 +4,10 @@ import type {
   Shift,
   ShiftTemplate,
   Store,
-  TemplateColor,
 } from './types';
 
 export const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-export const templateColors: Array<{ value: TemplateColor; label: string }> = [
+export const templateColors: Array<{ value: string; label: string }> = [
   { value: 'blue', label: '파랑' },
   { value: 'green', label: '초록' },
   { value: 'orange', label: '주황' },

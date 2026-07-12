@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { BaseShiftRule, Employee, Store } from '../../domain/types';
+import { colorClassName, colorInputValue, customColorStyle } from '../../utils/color';
 import { SettingsIcon } from './SettingsIcon';
 
 type StoreDraft = {
@@ -141,7 +142,7 @@ export function StoreManagementSettings({
                   key={store.id}
                   onClick={() => selectStore(store.id)}
                 >
-                  <span className={`store-settings-icon ${store.color}`}><SettingsIcon name="building" /></span>
+                  <span className={`store-settings-icon ${colorClassName(store.color)}`} style={customColorStyle(store.color)}><SettingsIcon name="building" /></span>
                   <div className="store-settings-info">
                     <div><strong>{store.name}</strong><em className={store.isActive ? 'is-active' : 'is-inactive'}>{store.isActive ? '운영중' : '비활성'}</em></div>
                     <p>{store.address || '주소 미입력'}</p>
@@ -164,7 +165,7 @@ export function StoreManagementSettings({
             <label>주소<input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="서울 동작구 사당로 17, 2층" /></label>
             <label>연락처<input value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} placeholder="02-522-1234" /></label>
             <div className="store-status-field"><span>운영 상태</span><button type="button" className={draft.isActive ? 'is-on' : ''} onClick={() => setDraft((current) => ({ ...current, isActive: !current.isActive }))}><i />{draft.isActive ? '운영중' : '비활성'}</button></div>
-            <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}</div></div>
+            <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}<label className={`color-rainbow-picker ${storeColors.includes(draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label></div></div>
             <label>메모<textarea value={draft.memo} maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))} placeholder="매장 관련 메모를 입력해주세요." rows={5} /><small>{draft.memo.length} / 200</small></label>
             <div className="store-editor-actions"><button type="button" onClick={resetDraft}>취소</button><button className="primary" type="submit">변경 저장</button></div>
           </form>
