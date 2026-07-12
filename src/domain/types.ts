@@ -25,7 +25,7 @@ export type Store = {
 
 export type AccountRole = 'manager' | 'viewer';
 
-export type AccountStatus = 'active' | 'inactive' | 'invited';
+export type AccountStatus = 'active' | 'inactive';
 
 export type AccountPermissionAction = 'view' | 'create' | 'update' | 'delete';
 
@@ -45,13 +45,11 @@ export type AppAccount = {
   id: string;
   username: string;
   displayName: string;
-  email: string;
   role: AccountRole;
   status: AccountStatus;
   storeIds: string[];
   permissions: AccountPermissions;
   lastSignedInAt: string | null;
-  invitedAt: string | null;
 };
 
 export type BaseShiftRule = {

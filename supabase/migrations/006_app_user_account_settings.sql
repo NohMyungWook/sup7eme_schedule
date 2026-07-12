@@ -1,21 +1,15 @@
 alter table public.app_users
-  add column if not exists email text not null default '',
   add column if not exists status text not null default 'active'
-    check (status in ('active', 'inactive', 'invited')),
-  add column if not exists last_signed_in_at timestamptz,
-  add column if not exists invited_at timestamptz;
+    check (status in ('active', 'inactive')),
+  add column if not exists last_signed_in_at timestamptz;
 
 update public.app_users
 set
-  email = case username
-    when 'admin' then 'admin@kingmw.com'
-    else email
-  end,
   status = case
     when is_active then 'active'
     else 'inactive'
   end
-where email = '' or status is null;
+where status is null;
 
 create table if not exists public.app_user_stores (
   user_id uuid not null references public.app_users(id) on delete cascade,

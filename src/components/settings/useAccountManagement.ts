@@ -33,7 +33,6 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     return [
       account.displayName,
       account.username,
-      account.email,
       roleLabels[account.role],
       getStoreSummary(account.storeIds, stores),
     ].some((value) => value.toLowerCase().includes(keyword));
