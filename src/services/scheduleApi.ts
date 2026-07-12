@@ -1,5 +1,5 @@
 import { stores as fallbackStores } from '../domain/data';
-import type { ScheduleState, TemplateColor } from '../domain/types';
+import type { ScheduleState } from '../domain/types';
 import { apiRequest } from './apiClient';
 
 type SchedulePayload = {
@@ -55,7 +55,7 @@ function normalizeScheduleState(state: Partial<ScheduleState> | undefined): Sche
         ...template,
         label: template.label || '근무',
         time: template.time || '08:00-15:00',
-        color: (template.color || 'blue') as TemplateColor,
+        color: template.color || 'blue',
         requiresTimeInput: Boolean(template.requiresTimeInput),
       }))
       : [],

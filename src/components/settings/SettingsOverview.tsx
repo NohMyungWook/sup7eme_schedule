@@ -33,12 +33,10 @@ export function SettingsOverview({ templates, stores, onTemplateSettingsOpen, on
               <button type="button" onClick={onTemplateSettingsOpen}>관리하기 <span>›</span></button>
             </article>
             <SettingsCategoryCard icon="building" title="근무지 관리" description="매장 추가, 주소, 운영 여부를 관리합니다." tags={[...storePreviewLabels, ...(storeExtraCount ? [`+${storeExtraCount}`] : [])]} onOpen={onStoreSettingsOpen} />
-            <SettingsCategoryCard icon="users" title="근무 유형 설정" description="오픈, 미들, 마감 등 기본 유형을 정의합니다." tags={['오픈', '미들', '마감', '+2']} tone="green" />
             <SettingsCategoryCard icon="calendar" title="스케줄 규칙" description="주간 생성 규칙, 중복 근무 제한 등을 설정합니다." tags={['주간 자동 생성', '중복 근무 제한', '연속 근무 제한']} />
             <SettingsCategoryCard icon="bell" title="알림 설정" description="스케줄 변경 및 공지 알림을 관리합니다." tags={['변경 알림', '공지 알림', '근무 확정 알림']} tone="orange" />
             <SettingsCategoryCard icon="shield" title="권한 및 계정" description="관리자 권한과 접근 범위를 설정합니다." tags={['역할 관리', '권한 그룹', '접근 범위']} tone="green" onOpen={onAccountSettingsOpen} />
-            <SettingsCategoryCard icon="holiday" title="휴무/공휴일" description="정기 휴무와 공휴일 기준을 설정합니다." tags={['정기 휴무', '공휴일', '대체 휴일']} tone="red" />
-            <SettingsCategoryCard icon="monitor" title="표시 옵션" description="캘린더, 색상, 카드 표시 방식을 관리합니다." tags={['캘린더 보기', '색상 테마', '카드 표시']} tone="blue" />
+            <SettingsCategoryCard icon="holiday" title="휴무 신청 내역 관리" description="직원 휴무 신청과 처리 상태를 확인합니다." tags={['신청 내역', '승인 대기', '처리 완료']} tone="red" />
           </div>
         </section>
         <aside className="settings-side-panel">

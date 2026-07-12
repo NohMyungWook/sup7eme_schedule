@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ShiftTemplate } from '../../domain/types';
+import { colorClassName, customColorStyle } from '../../utils/color';
 import { dayLabel } from '../../utils/schedule';
 
 type EmployeeShiftPickerModalProps = {
@@ -50,7 +51,8 @@ export function EmployeeShiftPickerModal({
         <div className="shift-picker-options">
           {templates.map((template) => (
             <button
-              className={`shift-picker-option ${template.color}`}
+              className={`shift-picker-option ${colorClassName(template.color)}`}
+              style={customColorStyle(template.color)}
               type="button"
               key={template.id}
               ref={template === templates[0] ? firstOptionRef : undefined}

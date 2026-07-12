@@ -228,6 +228,7 @@ export default function App() {
             setSelectedDate={app.setSelectedDate}
             setDraggingShiftId={app.setDraggingShiftId}
             onStoreChange={app.setStoreId}
+            onDateSelect={app.openScheduleDate}
             onMoveWeek={app.moveWeek}
             onCopyPreviousWeek={app.copyPreviousWeek}
             onGenerateBaseWeek={app.generateBaseWeek}

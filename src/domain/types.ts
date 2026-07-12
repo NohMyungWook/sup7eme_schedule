@@ -71,19 +71,11 @@ export type EmployeeDraft = Pick<
   'name' | 'preference' | 'color' | 'storeIds'
 >;
 
-export type TemplateColor =
-  | 'blue'
-  | 'green'
-  | 'orange'
-  | 'purple'
-  | 'navy'
-  | 'red';
-
 export type ShiftTemplate = {
   id: string;
   label: string;
   time: string;
-  color: TemplateColor;
+  color: string;
   requiresTimeInput?: boolean;
 };
 
@@ -91,7 +83,7 @@ export type TemplateDraft = {
   label: string;
   startTime: string;
   endTime: string;
-  color: TemplateColor;
+  color: string;
   requiresTimeInput: boolean;
 };
 

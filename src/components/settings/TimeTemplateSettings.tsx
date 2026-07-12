@@ -1,6 +1,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { templateColors } from '../../domain/data';
 import type { ShiftTemplate, TemplateDraft } from '../../domain/types';
+import { colorClassName, colorInputValue, customColorStyle } from '../../utils/color';
 import { TimePicker } from '../common/TimePicker';
 import { SettingsIcon } from './SettingsIcon';
 
@@ -40,8 +41,8 @@ export function TimeTemplateSettings({
           <div className="template-settings-list">
             {templates.map((template, index) => (
               <article className={`template-settings-card ${editingTemplateId === template.id ? 'is-selected' : ''}`} key={template.id} onClick={() => onEdit(template)}>
-                <span className={`template-time-dot ${template.color}`} aria-hidden="true"><i /></span>
-                <div className="template-settings-main"><div><strong>{template.label}</strong><em className={template.color}>{template.requiresTimeInput ? '직접입력' : '기본'}</em></div><span>{template.requiresTimeInput ? '직접입력' : template.time}</span></div>
+                <span className={`template-time-dot ${colorClassName(template.color)}`} style={customColorStyle(template.color)} aria-hidden="true"><i /></span>
+                <div className="template-settings-main"><div><strong>{template.label}</strong><em className={colorClassName(template.color)} style={customColorStyle(template.color)}>{template.requiresTimeInput ? '직접입력' : '기본'}</em></div><span>{template.requiresTimeInput ? '직접입력' : template.time}</span></div>
                 <div className="template-settings-usage"><span><SettingsIcon name="users" /> 직원 기본 근무 {Math.max(2, 8 - index)}명 사용</span><span>스케줄 {Math.max(4, 32 - index * 5)}건에 적용</span></div>
               </article>
             ))}
@@ -60,8 +61,9 @@ export function TimeTemplateSettings({
           <fieldset className="template-color-field">
             <legend>표시 색상</legend>
             {templateColors.map((color) => <label className={color.value} key={color.value} aria-label={`${color.label} 색상`}><input type="radio" name="template-color" value={color.value} checked={draft.color === color.value} onChange={() => setDraft((current) => ({ ...current, color: color.value }))} /><span>{color.label}</span></label>)}
+            <label className={`color-rainbow-picker template-rainbow-picker ${templateColors.some((color) => color.value === draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
           </fieldset>
-          <div className="template-preview"><span>미리보기</span><div className={`template-preview-card ${draft.color}`}><span className={`template-time-dot ${draft.color}`} aria-hidden="true"><i /></span><div><strong>{draft.label || '시간대 이름'}</strong><small>{draft.requiresTimeInput ? '직접입력' : `${draft.startTime}-${draft.endTime}`}</small></div><em>{draft.requiresTimeInput ? '직접 입력' : '기본'}</em></div><p>미리보기는 스케줄 화면에서의 표시 예시입니다.</p></div>
+          <div className="template-preview"><span>미리보기</span><div className={`template-preview-card ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)}><span className={`template-time-dot ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)} aria-hidden="true"><i /></span><div><strong>{draft.label || '시간대 이름'}</strong><small>{draft.requiresTimeInput ? '직접입력' : `${draft.startTime}-${draft.endTime}`}</small></div><em>{draft.requiresTimeInput ? '직접 입력' : '기본'}</em></div><p>미리보기는 스케줄 화면에서의 표시 예시입니다.</p></div>
           <div className="form-actions">
             <button type="button" onClick={onReset}>{editingTemplateId ? '취소' : '초기화'}</button>
             <button className="primary" type="submit" disabled={!draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
