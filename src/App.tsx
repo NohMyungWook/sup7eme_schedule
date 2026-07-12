@@ -79,8 +79,13 @@ export default function App() {
       </header>
       <AppSidebar
         activeView={app.activeView}
-        role={app.role}
-        displayName={app.displayName}
+        canView={{
+          dashboard: app.canViewDashboard,
+          schedule: app.canViewSchedule,
+          employees: app.canViewEmployees,
+          notes: app.canViewNotes,
+          settings: app.canViewSettings,
+        }}
         onViewChange={(view) => {
           app.setActiveView(view);
           if (window.matchMedia('(max-width: 700px)').matches) {
@@ -88,13 +93,19 @@ export default function App() {
           }
         }}
         onClose={() => setIsSidebarOpen(false)}
-        onLogout={app.logout}
       />
       {isSidebarOpen ? <button className="sidebar-backdrop" type="button" aria-label="메뉴 닫기" onClick={() => setIsSidebarOpen(false)} /> : <button className="sidebar-open-button" type="button" aria-label="메뉴 열기" onClick={() => setIsSidebarOpen(true)}><svg className="sidebar-open-desktop-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg><svg className="sidebar-open-mobile-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>}
       {isSidebarOpen ? (
         <MobileNavMenu
           activeView={app.activeView}
           role={app.role}
+          canView={{
+            dashboard: app.canViewDashboard,
+            schedule: app.canViewSchedule,
+            employees: app.canViewEmployees,
+            notes: app.canViewNotes,
+            settings: app.canViewSettings,
+          }}
           displayName={app.displayName}
           onViewChange={(view) => {
             app.setActiveView(view);
@@ -114,6 +125,14 @@ export default function App() {
                 : ''
         }`}
       >
+        <div className="app-user-chip" aria-label="현재 로그인 사용자">
+          <span className="app-user-avatar">{(app.displayName || app.role || '?').slice(0, 1)}</span>
+          <div>
+            <span>{app.role === 'manager' ? '매니저' : '직원'}</span>
+            <strong>{app.displayName || (app.role === 'manager' ? '매니저' : '직원')}</strong>
+          </div>
+          <button type="button" onClick={app.logout}>로그아웃</button>
+        </div>
         {app.activeView === 'dashboard' ? (
           <DashboardView
             storeId={app.storeId}
@@ -133,6 +152,9 @@ export default function App() {
             templates={app.templates}
             draft={app.templateDraft}
             editingTemplateId={app.editingTemplateId}
+            canCreate={app.canCreateSettings}
+            canUpdate={app.canUpdateSettings}
+            canDelete={app.canDeleteSettings}
             setDraft={app.setTemplateDraft}
             onEdit={app.editTemplate}
             onDelete={app.deleteTemplate}
@@ -153,7 +175,7 @@ export default function App() {
             employeeDraft={app.employeeDraft}
             selectedEmployeeDraft={app.selectedEmployeeDraft}
             baseShiftDraft={app.baseShiftDraft}
-            isManager={app.isManager}
+            isManager={app.canCreateEmployees || app.canUpdateEmployees || app.canDeleteEmployees}
             setEmployeeDraft={app.setEmployeeDraft}
             setSelectedEmployeeDraft={app.setSelectedEmployeeDraft}
             setBaseShiftDraft={app.setBaseShiftDraft}
@@ -188,7 +210,9 @@ export default function App() {
             memoDate={app.memoDate}
             memoText={app.memoText}
             editingMemoKey={app.editingMemoKey}
-            isManager={app.isManager}
+            canCreate={app.canCreateNotes}
+            canUpdate={app.canUpdateNotes}
+            canDelete={app.canDeleteNotes}
             onStoreFilterChange={(storeId) => {
               app.setNoteStoreFilter(storeId);
               if (storeId !== 'all' && !app.editingMemoKey) {
@@ -222,7 +246,9 @@ export default function App() {
             showModal={app.showShiftModal}
             isQuickShiftEntry={app.isQuickShiftEntry}
             timeError={app.shiftTimeError}
-            isManager={app.isManager}
+            canCreate={app.canCreateSchedule}
+            canUpdate={app.canUpdateSchedule}
+            canDelete={app.canDeleteSchedule}
             selectedEmployeeId={app.scheduleSelectedEmployee?.id}
             setDraft={app.setDraft}
             setSelectedDate={app.setSelectedDate}
@@ -257,6 +283,7 @@ type MobileNavMenuProps = {
   activeView: ActiveView;
   role: Role;
   displayName: string;
+  canView: Record<ActiveView, boolean>;
   onViewChange: (view: ActiveView) => void;
   onLogout: () => void;
 };
@@ -265,16 +292,17 @@ function MobileNavMenu({
   activeView,
   role,
   displayName,
+  canView,
   onViewChange,
   onLogout,
 }: MobileNavMenuProps) {
   const isManager = role === 'manager';
-  const navItems: Array<{ view: ActiveView; label: string; managerOnly?: boolean }> = [
-    { view: 'dashboard', label: '대시보드', managerOnly: true },
+  const navItems: Array<{ view: ActiveView; label: string }> = [
+    { view: 'dashboard', label: '대시보드' },
     { view: 'schedule', label: '스케줄' },
-    { view: 'employees', label: '직원', managerOnly: true },
-    { view: 'notes', label: '메모', managerOnly: true },
-    { view: 'settings', label: '설정', managerOnly: true },
+    { view: 'employees', label: '직원' },
+    { view: 'notes', label: '메모' },
+    { view: 'settings', label: '설정' },
   ];
 
   return (
@@ -285,7 +313,7 @@ function MobileNavMenu({
       </div>
       <div className="mobile-nav-list">
         {navItems
-          .filter((item) => !item.managerOnly || isManager)
+          .filter((item) => canView[item.view])
           .map((item) => (
             <button
               type="button"

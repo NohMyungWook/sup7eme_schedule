@@ -12,9 +12,11 @@ import type {
 import { addDays, splitShiftTime, templateById } from '../utils/schedule';
 
 type UseShiftManagementOptions = {
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   days: string[];
   employees: Employee[];
-  isManager: boolean;
   selectedDate: string;
   setSelectedDate: Dispatch<SetStateAction<string>>;
   setSchedule: Dispatch<SetStateAction<ScheduleState>>;
@@ -24,9 +26,11 @@ type UseShiftManagementOptions = {
 };
 
 export function useShiftManagement({
+  canCreate,
+  canDelete,
+  canUpdate,
   days,
   employees,
-  isManager,
   selectedDate,
   setSelectedDate,
   setSchedule,
@@ -87,7 +91,7 @@ export function useShiftManagement({
 
   function submitShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager) return;
+    if (editingId ? !canUpdate : !canCreate) return;
 
     const { startTime, endTime } = splitShiftTime(draft.time);
     if (startTime === endTime) {
@@ -122,7 +126,7 @@ export function useShiftManagement({
   }
 
   function editShift(shift: Shift) {
-    if (!isManager) return;
+    if (!canUpdate && !canDelete) return;
 
     setSelectedDate(shift.date);
     setEditingId(shift.id);
@@ -138,7 +142,7 @@ export function useShiftManagement({
   }
 
   function deleteShift() {
-    if (!editingId || !isManager) return;
+    if (!editingId || !canDelete) return;
     removeShift(editingId);
     setShowShiftModal(false);
   }
@@ -151,7 +155,7 @@ export function useShiftManagement({
   }
 
   function removeShift(shiftId: string) {
-    if (!isManager) return;
+    if (!canDelete) return;
 
     setSchedule((current) => ({
       ...current,
@@ -162,7 +166,7 @@ export function useShiftManagement({
   }
 
   function moveShiftToDate(shiftId: string, date: string) {
-    if (!isManager) return;
+    if (!canUpdate) return;
 
     setSchedule((current) => ({
       ...current,
@@ -178,7 +182,7 @@ export function useShiftManagement({
   }
 
   function copyPreviousWeek() {
-    if (!isManager) return;
+    if (!canCreate) return;
 
     const copied = visibleShifts
       .filter((shift) => {
@@ -203,13 +207,13 @@ export function useShiftManagement({
   }
 
   function addDraggedEmployee(employeeId: string, date: string) {
-    if (!isManager) return;
+    if (!canCreate) return;
     setSelectedDate(date);
     setPendingEmployeeDrop({ employeeId, date });
   }
 
   function selectDroppedEmployeeTemplate(templateId: string) {
-    if (!isManager || !pendingEmployeeDrop) return;
+    if (!canCreate || !pendingEmployeeDrop) return;
 
     const selectedTemplate = templateById(templateId, templates);
     if (!templates.some((template) => template.id === selectedTemplate.id)) {

@@ -13,14 +13,16 @@ type UseTemplateManagementOptions = {
   templates: ShiftTemplate[];
   draft: DraftShift;
   baseShiftDraft: BaseShiftDraft;
-  isManager: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   setDraft: Dispatch<SetStateAction<DraftShift>>;
   setBaseShiftDraft: Dispatch<SetStateAction<BaseShiftDraft>>;
   setSchedule: Dispatch<SetStateAction<ScheduleState>>;
 };
 
 export function useTemplateManagement(options: UseTemplateManagementOptions) {
-  const { templates, draft, baseShiftDraft, isManager, setDraft, setBaseShiftDraft, setSchedule } = options;
+  const { templates, draft, baseShiftDraft, canCreate, canDelete, canUpdate, setDraft, setBaseShiftDraft, setSchedule } = options;
   const [templateDraft, setTemplateDraft] = useState<TemplateDraft>(createInitialTemplateDraft);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
@@ -38,7 +40,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
 
   function saveTemplate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isManager || !templateDraft.label.trim()) return;
+    if ((editingTemplateId ? !canUpdate : !canCreate) || !templateDraft.label.trim()) return;
     const time = `${templateDraft.startTime}-${templateDraft.endTime}`;
     if (!templateDraft.requiresTimeInput && templateDraft.startTime === templateDraft.endTime) return;
 
@@ -60,6 +62,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
   }
 
   function editTemplate(template: ShiftTemplate) {
+    if (!canUpdate && !canDelete) return;
     const { startTime, endTime } = splitShiftTime(template.time);
     setEditingTemplateId(template.id);
     setTemplateDraft({ label: template.label, startTime, endTime, color: template.color, requiresTimeInput: Boolean(template.requiresTimeInput) });
@@ -71,7 +74,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
   }
 
   function deleteTemplate(templateId: string) {
-    if (!isManager || templates.length <= 1 || !window.confirm('이 시간대를 삭제할까요? 사용 중인 근무는 다른 시간대로 자동 전환됩니다.')) return;
+    if (!canDelete || templates.length <= 1 || !window.confirm('이 시간대를 삭제할까요? 사용 중인 근무는 다른 시간대로 자동 전환됩니다.')) return;
     const fallback = templates.find((template) => template.id !== templateId);
     if (!fallback) return;
 

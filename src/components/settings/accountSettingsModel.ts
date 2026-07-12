@@ -1,12 +1,12 @@
 import type {
   AccountPermissionAction,
   AccountPermissionMenu,
-  AccountPermissions,
   AccountRole,
   AccountStatus,
   AppAccount,
   Store,
 } from '../../domain/types';
+import { clonePermissions, defaultManagerPermissions } from '../../domain/permissions';
 
 export type AccountDraft = AppAccount & {
   password?: string;
@@ -60,25 +60,11 @@ export function createAccountDraft(
       role: 'manager',
       status: 'invited',
       storeIds: stores.length ? [] : [],
-      permissions: createDefaultPermissions(),
+      permissions: clonePermissions(defaultManagerPermissions),
       lastSignedInAt: null,
       invitedAt: null,
       password: '',
     };
-}
-
-export function createDefaultPermissions(): AccountPermissions {
-  return {
-    dashboard: { view: true, create: true, update: true, delete: true },
-    schedule: { view: true, create: true, update: true, delete: true },
-    employees: { view: true, create: true, update: true, delete: true },
-    notes: { view: true, create: true, update: true, delete: true },
-    settings: { view: true, create: true, update: true, delete: true },
-  };
-}
-
-export function clonePermissions(permissions: AccountPermissions): AccountPermissions {
-  return JSON.parse(JSON.stringify(permissions)) as AccountPermissions;
 }
 
 export function getStoreSummary(storeIds: string[], stores: Store[]) {

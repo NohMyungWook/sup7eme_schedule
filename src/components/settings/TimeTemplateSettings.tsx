@@ -9,6 +9,9 @@ type TimeTemplateSettingsProps = {
   templates: ShiftTemplate[];
   draft: TemplateDraft;
   editingTemplateId: string | null;
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onBack: () => void;
   onEdit: (template: ShiftTemplate) => void;
@@ -20,6 +23,9 @@ export function TimeTemplateSettings({
   templates,
   draft,
   editingTemplateId,
+  canCreate,
+  canDelete,
+  canUpdate,
   setDraft,
   onBack,
   onEdit,
@@ -36,11 +42,11 @@ export function TimeTemplateSettings({
         <section className="template-settings-list-panel">
           <div className="template-settings-toolbar">
             <div><strong>등록된 시간대</strong><span>{templates.length}개</span></div>
-            <button className="primary template-add-button" type="button" onClick={onReset}>+ 시간대 추가</button>
+            <button className="primary template-add-button" type="button" onClick={onReset} disabled={!canCreate}>+ 시간대 추가</button>
           </div>
           <div className="template-settings-list">
             {templates.map((template, index) => (
-              <article className={`template-settings-card ${editingTemplateId === template.id ? 'is-selected' : ''}`} key={template.id} onClick={() => onEdit(template)}>
+              <article className={`template-settings-card ${editingTemplateId === template.id ? 'is-selected' : ''}`} key={template.id} onClick={() => { if (canUpdate || canDelete) onEdit(template); }}>
                 <span className={`template-time-dot ${colorClassName(template.color)}`} style={customColorStyle(template.color)} aria-hidden="true"><i /></span>
                 <div className="template-settings-main"><div><strong>{template.label}</strong><em className={colorClassName(template.color)} style={customColorStyle(template.color)}>{template.requiresTimeInput ? '직접입력' : '기본'}</em></div><span>{template.requiresTimeInput ? '직접입력' : template.time}</span></div>
                 <div className="template-settings-usage"><span><SettingsIcon name="users" /> 직원 기본 근무 {Math.max(2, 8 - index)}명 사용</span><span>스케줄 {Math.max(4, 32 - index * 5)}건에 적용</span></div>
@@ -51,22 +57,22 @@ export function TimeTemplateSettings({
         </section>
         <form className="template-settings-form" onSubmit={onSubmit}>
           <div><h2>{editingTemplateId ? '시간대 수정' : '새 시간대 추가'}</h2><p>시작과 종료 시간은 분 단위로 설정할 수 있습니다.</p></div>
-          <label>시간대 이름<input value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} placeholder="예: 오전 보조" required /></label>
+          <label>시간대 이름<input value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} disabled={editingTemplateId ? !canUpdate : !canCreate} placeholder="예: 오전 보조" required /></label>
           <div className="template-time-fields">
-            <label>시작 시간<TimePicker value={draft.startTime} onChange={(startTime) => setDraft((current) => ({ ...current, startTime }))} ariaLabel="시간대 시작 시간" disabled={draft.requiresTimeInput} /></label>
+            <label>시작 시간<TimePicker value={draft.startTime} onChange={(startTime) => setDraft((current) => ({ ...current, startTime }))} ariaLabel="시간대 시작 시간" disabled={draft.requiresTimeInput || (editingTemplateId ? !canUpdate : !canCreate)} /></label>
             <span>~</span>
-            <label>종료 시간<TimePicker value={draft.endTime} onChange={(endTime) => setDraft((current) => ({ ...current, endTime }))} ariaLabel="시간대 종료 시간" disabled={draft.requiresTimeInput} /></label>
+            <label>종료 시간<TimePicker value={draft.endTime} onChange={(endTime) => setDraft((current) => ({ ...current, endTime }))} ariaLabel="시간대 종료 시간" disabled={draft.requiresTimeInput || (editingTemplateId ? !canUpdate : !canCreate)} /></label>
           </div>
-          <label className="template-direct-input-toggle"><input type="checkbox" checked={draft.requiresTimeInput} onChange={(event) => setDraft((current) => ({ ...current, requiresTimeInput: event.target.checked }))} /><span>직접 입력 허용</span></label>
+          <label className="template-direct-input-toggle"><input type="checkbox" checked={draft.requiresTimeInput} disabled={editingTemplateId ? !canUpdate : !canCreate} onChange={(event) => setDraft((current) => ({ ...current, requiresTimeInput: event.target.checked }))} /><span>직접 입력 허용</span></label>
           <fieldset className="template-color-field">
             <legend>표시 색상</legend>
-            {templateColors.map((color) => <label className={color.value} key={color.value} aria-label={`${color.label} 색상`}><input type="radio" name="template-color" value={color.value} checked={draft.color === color.value} onChange={() => setDraft((current) => ({ ...current, color: color.value }))} /><span>{color.label}</span></label>)}
-            <label className={`color-rainbow-picker template-rainbow-picker ${templateColors.some((color) => color.value === draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
+            {templateColors.map((color) => <label className={color.value} key={color.value} aria-label={`${color.label} 색상`}><input type="radio" name="template-color" value={color.value} checked={draft.color === color.value} disabled={editingTemplateId ? !canUpdate : !canCreate} onChange={() => setDraft((current) => ({ ...current, color: color.value }))} /><span>{color.label}</span></label>)}
+            <label className={`color-rainbow-picker template-rainbow-picker ${templateColors.some((color) => color.value === draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} disabled={editingTemplateId ? !canUpdate : !canCreate} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
           </fieldset>
           <div className="template-preview"><span>미리보기</span><div className={`template-preview-card ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)}><span className={`template-time-dot ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)} aria-hidden="true"><i /></span><div><strong>{draft.label || '시간대 이름'}</strong><small>{draft.requiresTimeInput ? '직접입력' : `${draft.startTime}-${draft.endTime}`}</small></div><em>{draft.requiresTimeInput ? '직접 입력' : '기본'}</em></div><p>미리보기는 스케줄 화면에서의 표시 예시입니다.</p></div>
           <div className="form-actions">
             <button type="button" onClick={onReset}>{editingTemplateId ? '취소' : '초기화'}</button>
-            <button className="primary" type="submit" disabled={!draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
+            <button className="primary" type="submit" disabled={(editingTemplateId ? !canUpdate : !canCreate) || !draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
           </div>
         </form>
       </div>

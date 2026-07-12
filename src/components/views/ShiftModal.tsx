@@ -11,6 +11,8 @@ type ShiftModalProps = {
   templates: ShiftTemplate[];
   draft: DraftShift;
   editingId: string | null;
+  canDelete: boolean;
+  canSubmit: boolean;
   timeError: string;
   setDraft: Dispatch<SetStateAction<DraftShift>>;
   onTemplateSelect: (templateId: string) => void;
@@ -36,8 +38,8 @@ export function ShiftModal(props: ShiftModalProps) {
           <label className="shift-modal-note">메모{props.compact ? <textarea value={props.draft.note} onChange={(event) => props.setDraft((current) => ({ ...current, note: event.target.value }))} placeholder="대타, 연장 등 전달할 내용을 입력하세요." rows={3} /> : <input value={props.draft.note} onChange={(event) => props.setDraft((current) => ({ ...current, note: event.target.value }))} placeholder="교육, 대타, 연장 등" />}</label>
         </div>
         <div className="form-actions">
-          {props.editingId ? <button className="danger" type="button" onClick={props.onDelete}>근무 삭제</button> : <button type="button" onClick={props.onClose}>취소</button>}
-          <button className="primary" type="submit">{props.editingId ? '변경 저장' : '근무 추가'}</button>
+          {props.editingId && props.canDelete ? <button className="danger" type="button" onClick={props.onDelete}>근무 삭제</button> : <button type="button" onClick={props.onClose}>취소</button>}
+          <button className="primary" type="submit" disabled={!props.canSubmit}>{props.editingId ? '변경 저장' : '근무 추가'}</button>
         </div>
       </form>
     </div>

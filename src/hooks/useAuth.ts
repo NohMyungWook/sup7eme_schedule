@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Role } from '../domain/types';
+import { defaultPermissionsForRole, normalizeAccountPermissions } from '../domain/permissions';
+import type { AccountPermissions, Role } from '../domain/types';
 import { loginToApi } from '../services/authApi';
 
 const SESSION_KEY = 'sup7eme-session';
@@ -7,6 +8,7 @@ const SESSION_KEY = 'sup7eme-session';
 type StoredSession = {
   role: Role;
   displayName: string;
+  permissions: AccountPermissions;
 };
 
 type UseAuthOptions = {
@@ -17,6 +19,7 @@ type UseAuthOptions = {
 export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   const [role, setRole] = useState<Role | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [permissions, setPermissions] = useState<AccountPermissions>(() => defaultPermissionsForRole(null));
   const [loginId, setLoginId] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -26,6 +29,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     const session = loadSession();
     setRole(session?.role ?? null);
     setDisplayName(session?.displayName ?? '');
+    setPermissions(session?.permissions ?? defaultPermissionsForRole(session?.role ?? null));
     setIsAuthLoading(false);
   }, []);
 
@@ -55,11 +59,13 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     const nextSession = {
       role: nextRole,
       displayName: payload.user.displayName || payload.user.username,
+      permissions: normalizeAccountPermissions(payload.user.permissions, nextRole),
     };
 
     saveSession(nextSession);
     setRole(nextSession.role);
     setDisplayName(nextSession.displayName);
+    setPermissions(nextSession.permissions);
     setLoginPassword('');
     onLogin();
   }
@@ -68,6 +74,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     clearSession();
     setRole(null);
     setDisplayName('');
+    setPermissions(defaultPermissionsForRole(null));
     setLoginId('');
     setLoginPassword('');
     setLoginError('');
@@ -77,6 +84,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   return {
     role,
     displayName,
+    permissions,
     loginId,
     setLoginId,
     loginPassword,
@@ -95,7 +103,11 @@ function loadSession(): StoredSession | null {
     if (!saved) return null;
 
     const parsed = JSON.parse(saved) as StoredSession;
-    return parsed.role === 'manager' || parsed.role === 'viewer' ? parsed : null;
+    if (parsed.role !== 'manager' && parsed.role !== 'viewer') return null;
+    return {
+      ...parsed,
+      permissions: normalizeAccountPermissions(parsed.permissions, parsed.role),
+    };
   } catch {
     return null;
   }

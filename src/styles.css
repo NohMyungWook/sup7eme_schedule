@@ -246,6 +246,74 @@ button {
   display: none;
 }
 
+.app-user-chip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 9px;
+  min-width: 0;
+  width: fit-content;
+  margin-bottom: 12px;
+  margin-left: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 7px 6px 6px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 7%);
+}
+
+.app-user-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6654e8, #9b7cff);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 900;
+  place-items: center;
+}
+
+.app-user-chip > div {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.app-user-chip > div span {
+  color: #8b95a7;
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.app-user-chip strong {
+  max-width: 180px;
+  overflow: hidden;
+  color: #172033;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-user-chip button {
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.app-user-chip button:hover {
+  background: #f1edff;
+  color: #5743d7;
+}
+
 .nav-list {
   display: grid;
   gap: 7px;
@@ -3848,22 +3916,9 @@ textarea:focus {
 
 .account-name {
   display: grid;
-  grid-template-columns: 32px minmax(0, auto) minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
+  gap: 3px;
+  align-content: center;
   min-width: 0;
-}
-
-.account-name i {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: #a78bfa;
-  color: #ffffff;
-  font-style: normal;
-  font-weight: 900;
-  place-items: center;
 }
 
 .account-name strong {
@@ -4179,10 +4234,12 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   justify-self: start;
-  width: auto;
-  height: auto;
-  padding: 4px 9px 4px 4px;
-  background: transparent;
+  min-width: 92px;
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 5px 10px 5px 5px;
+  background: #f8fafc;
   color: #334155;
   font-size: 0.76rem;
   font-weight: 900;
@@ -4192,18 +4249,27 @@ textarea:focus {
   display: block;
   width: 28px;
   height: 18px;
+  border: 1px solid #94a3b8;
   border-radius: 999px;
   background: #cbd5e1;
-  box-shadow: inset 11px 0 0 #ffffff;
+  box-shadow: inset 11px 0 0 #ffffff, 0 1px 2px rgb(15 23 42 / 16%);
 }
 
 .account-status-toggle.is-on {
+  border-color: #c8c1ff;
+  background: #f1edff;
   color: #5743d7;
 }
 
 .account-status-toggle.is-on i {
+  border-color: #6654e8;
   background: #6654e8;
-  box-shadow: inset -11px 0 0 #ffffff;
+  box-shadow: inset -11px 0 0 #ffffff, 0 1px 2px rgb(15 23 42 / 16%);
+}
+
+.account-status-toggle:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 .account-invite-field button {
@@ -4386,6 +4452,10 @@ textarea:focus {
     background: rgb(255 255 255 / 94%);
     box-shadow: 0 10px 28px rgb(15 23 42 / 8%);
     backdrop-filter: blur(12px);
+  }
+
+  .app-user-chip {
+    display: none;
   }
 
   .mobile-top-nav strong {

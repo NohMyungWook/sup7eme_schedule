@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   stores as fallbackStores,
 } from '../domain/data';
+import { hasPermission } from '../domain/permissions';
 import type {
   ActiveView,
   Store,
@@ -34,6 +35,7 @@ export function useScheduleController() {
   const {
     role,
     displayName,
+    permissions,
     loginId,
     setLoginId,
     loginPassword,
@@ -66,6 +68,23 @@ export function useScheduleController() {
   const [generationMessage, setGenerationMessage] = useState('');
 
   const isManager = role === 'manager';
+  const canViewDashboard = hasPermission(permissions, 'dashboard', 'view');
+  const canViewSchedule = hasPermission(permissions, 'schedule', 'view');
+  const canViewEmployees = hasPermission(permissions, 'employees', 'view');
+  const canViewNotes = hasPermission(permissions, 'notes', 'view');
+  const canViewSettings = hasPermission(permissions, 'settings', 'view');
+  const canCreateSchedule = hasPermission(permissions, 'schedule', 'create');
+  const canUpdateSchedule = hasPermission(permissions, 'schedule', 'update');
+  const canDeleteSchedule = hasPermission(permissions, 'schedule', 'delete');
+  const canCreateEmployees = hasPermission(permissions, 'employees', 'create');
+  const canUpdateEmployees = hasPermission(permissions, 'employees', 'update');
+  const canDeleteEmployees = hasPermission(permissions, 'employees', 'delete');
+  const canCreateNotes = hasPermission(permissions, 'notes', 'create');
+  const canUpdateNotes = hasPermission(permissions, 'notes', 'update');
+  const canDeleteNotes = hasPermission(permissions, 'notes', 'delete');
+  const canCreateSettings = hasPermission(permissions, 'settings', 'create');
+  const canUpdateSettings = hasPermission(permissions, 'settings', 'update');
+  const canDeleteSettings = hasPermission(permissions, 'settings', 'delete');
   const visibleShifts = getStoreShifts(shifts, storeId);
   const {
     draft,
@@ -93,9 +112,11 @@ export function useScheduleController() {
     addDraggedEmployee,
     selectDroppedEmployeeTemplate,
   } = useShiftManagement({
+    canCreate: canCreateSchedule,
+    canDelete: canDeleteSchedule,
+    canUpdate: canUpdateSchedule,
     days,
     employees,
-    isManager,
     selectedDate,
     setSelectedDate,
     setSchedule,
@@ -141,12 +162,14 @@ export function useScheduleController() {
     cancelBaseShiftEdit,
     editingBaseShiftIds,
   } = useEmployeeManagement({
+    canCreate: canCreateEmployees,
+    canDelete: canDeleteEmployees,
+    canUpdate: canUpdateEmployees,
     employees,
     stores: configuredStores,
     storeId,
     storeFilter: employeeStoreFilter,
     activeView,
-    isManager,
     setStoreId,
     setDraft,
     setSchedule,
@@ -164,7 +187,9 @@ export function useScheduleController() {
     templates,
     draft,
     baseShiftDraft,
-    isManager,
+    canCreate: canCreateSettings,
+    canDelete: canDeleteSettings,
+    canUpdate: canUpdateSettings,
     setDraft,
     setBaseShiftDraft,
     setSchedule,
@@ -183,10 +208,12 @@ export function useScheduleController() {
     deleteMemo,
     resetMemoForm,
   } = useMemoManagement({
+    canCreate: canCreateNotes,
+    canDelete: canDeleteNotes,
+    canUpdate: canUpdateNotes,
     notes,
     stores: configuredStores,
     storeFilter: noteStoreFilter,
-    isManager,
     setSchedule,
   });
   useEffect(() => {
@@ -204,10 +231,20 @@ export function useScheduleController() {
   }, [activeView, scheduleSelectedEmployee, setDraft, setSelectedEmployeeId, storeId]);
 
   useEffect(() => {
-    if (role === 'viewer' && activeView !== 'schedule') {
-      setActiveView('schedule');
+    if (!role) return;
+
+    const canViewByActiveView: Record<ActiveView, boolean> = {
+      dashboard: canViewDashboard,
+      schedule: canViewSchedule,
+      employees: canViewEmployees,
+      notes: canViewNotes,
+      settings: canViewSettings,
+    };
+
+    if (!canViewByActiveView[activeView]) {
+      setActiveView(activeViews.find((view) => canViewByActiveView[view]) ?? 'schedule');
     }
-  }, [activeView, role]);
+  }, [activeView, canViewDashboard, canViewEmployees, canViewNotes, canViewSchedule, canViewSettings, role]);
 
   function moveWeek(direction: -1 | 1) {
     setWeekStart((current) => addDays(current, direction * 7));
@@ -221,7 +258,7 @@ export function useScheduleController() {
   }
 
   function generateBaseWeek() {
-    if (!isManager) {
+    if (!canCreateSchedule) {
       return;
     }
 
@@ -264,7 +301,7 @@ export function useScheduleController() {
   }
 
   function saveStores(nextStores: Store[]) {
-    if (!isManager) return;
+    if (!canUpdateSettings) return;
     setSchedule((current) => ({
       ...current,
       stores: nextStores,
@@ -274,7 +311,7 @@ export function useScheduleController() {
   return {
     stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, storeId,
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
-    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, loginId,
+    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, permissions, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
     isAuthLoading, scheduleStatus,
     days, selectedDate, setSelectedDate, draft, setDraft, editingId,
@@ -286,7 +323,13 @@ export function useScheduleController() {
     showShiftModal, isQuickShiftEntry, shiftTimeError, pendingEmployeeDrop,
     dragTemplates,
     templateDraft, setTemplateDraft,
-    editingTemplateId, isManager, visibleShifts, storeEmployees,
+    editingTemplateId, isManager, canViewDashboard, canViewSchedule,
+    canViewEmployees, canViewNotes, canViewSettings,
+    canCreateSchedule, canUpdateSchedule, canDeleteSchedule,
+    canCreateEmployees, canUpdateEmployees, canDeleteEmployees,
+    canCreateNotes, canUpdateNotes, canDeleteNotes,
+    canCreateSettings, canUpdateSettings, canDeleteSettings,
+    visibleShifts, storeEmployees,
     filteredEmployees, selectedEmployee, scheduleSelectedEmployee,
     selectedEmployeeBaseShifts, filteredNotes, login, logout,
     moveWeek, openScheduleDate, selectTemplate, updateDraftTime,

@@ -1,29 +1,24 @@
-import type { ActiveView, Role } from '../../domain/types';
+import type { ActiveView } from '../../domain/types';
 
 type AppSidebarProps = {
   activeView: ActiveView;
-  role: Role;
-  displayName: string;
+  canView: Record<ActiveView, boolean>;
   onViewChange: (view: ActiveView) => void;
   onClose: () => void;
-  onLogout: () => void;
 };
 
 export function AppSidebar({
   activeView,
-  role,
-  displayName,
+  canView,
   onViewChange,
   onClose,
-  onLogout,
 }: AppSidebarProps) {
-  const isManager = role === 'manager';
-  const navItems: Array<{ view: ActiveView; label: string; icon: SidebarIconName; managerOnly?: boolean }> = [
-    { view: 'dashboard', label: '대시보드', icon: 'dashboard', managerOnly: true },
+  const navItems: Array<{ view: ActiveView; label: string; icon: SidebarIconName }> = [
+    { view: 'dashboard', label: '대시보드', icon: 'dashboard' },
     { view: 'schedule', label: '스케줄', icon: 'schedule' },
-    { view: 'employees', label: '직원', icon: 'employees', managerOnly: true },
-    { view: 'notes', label: '메모', icon: 'notes', managerOnly: true },
-    { view: 'settings', label: '설정', icon: 'settings', managerOnly: true },
+    { view: 'employees', label: '직원', icon: 'employees' },
+    { view: 'notes', label: '메모', icon: 'notes' },
+    { view: 'settings', label: '설정', icon: 'settings' },
   ];
 
   return (
@@ -39,7 +34,7 @@ export function AppSidebar({
       </div>
       <nav className="nav-list">
         {navItems
-          .filter((item) => !item.managerOnly || isManager)
+          .filter((item) => canView[item.view])
           .map((item) => (
             <button
               type="button"
@@ -52,10 +47,6 @@ export function AppSidebar({
             </button>
           ))}
       </nav>
-      <section className="session-panel">
-        <div><span>{isManager ? '매니저' : '직원'}</span><strong>{displayName || (isManager ? '매니저' : '직원')}</strong></div>
-        <button type="button" onClick={onLogout}>로그아웃</button>
-      </section>
     </aside>
   );
 }
