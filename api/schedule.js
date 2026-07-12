@@ -1,4 +1,10 @@
-import { getPool, readJsonBody, requireMethod, sendJson } from './_db.js';
+import { getPool, hasPermission, readJsonBody, requireAuth, requireMethod, sendJson } from './_db.js';
+
+const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,100}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-4]):[0-5]\d$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const COLOR_TOKEN_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
 
 const defaultTemplateTimes = {
   open: '08:00-15:00',
@@ -13,6 +19,13 @@ export default async function handler(request, response) {
   if (!requireMethod(request, response, ['GET', 'PUT'])) return;
 
   try {
+    const auth = await requireAuth(
+      request,
+      response,
+      request.method === 'GET' ? { menu: 'schedule', action: 'view' } : undefined,
+    );
+    if (!auth) return;
+
     if (request.method === 'GET') {
       const state = await fetchScheduleState();
       sendJson(response, 200, { state });
@@ -20,11 +33,23 @@ export default async function handler(request, response) {
     }
 
     const body = await readJsonBody(request);
-    await saveScheduleState(body.state);
+    const nextState = normalizeStateForSave(body.state);
+    const currentState = await fetchScheduleState();
+    assertScheduleWritePermissions(auth, currentState, nextState);
+    await saveScheduleState(nextState);
     const state = await fetchScheduleState();
     sendJson(response, 200, { state });
   } catch (error) {
-    sendJson(response, 500, { message: error instanceof Error ? error.message : '스케줄 처리 중 오류가 발생했습니다.' });
+    if (error instanceof PermissionError) {
+      sendJson(response, 403, { message: error.message });
+      return;
+    }
+    if (error instanceof ValidationError) {
+      sendJson(response, 400, { message: error.message });
+      return;
+    }
+    console.error(error);
+    sendJson(response, 500, { message: '스케줄 처리 중 오류가 발생했습니다.' });
   }
 }
 
@@ -112,10 +137,6 @@ async function fetchScheduleState() {
 }
 
 async function saveScheduleState(state) {
-  if (!state || !Array.isArray(state.stores) || !Array.isArray(state.employees) || !Array.isArray(state.templates) || !Array.isArray(state.shifts) || !Array.isArray(state.notes)) {
-    throw new Error('스케줄 데이터 형식이 올바르지 않습니다.');
-  }
-
   const client = await getPool().connect();
   try {
     await client.query('begin');
@@ -316,3 +337,180 @@ function toDateString(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return String(value).slice(0, 10);
 }
+
+function normalizeStateForSave(state) {
+  if (!state || !Array.isArray(state.stores) || !Array.isArray(state.employees) || !Array.isArray(state.templates) || !Array.isArray(state.shifts) || !Array.isArray(state.notes)) {
+    throw new ValidationError('스케줄 데이터 형식이 올바르지 않습니다.');
+  }
+  if (state.stores.length > 100 || state.employees.length > 500 || state.templates.length > 100 || state.shifts.length > 10_000 || state.notes.length > 3_000) {
+    throw new ValidationError('스케줄 데이터가 허용 범위를 초과했습니다.');
+  }
+
+  return {
+    stores: state.stores.map(normalizeStore),
+    employees: state.employees.map(normalizeEmployee),
+    templates: state.templates.map(normalizeTemplate),
+    shifts: state.shifts.map(normalizeShift),
+    notes: state.notes.map(normalizeNote),
+  };
+}
+
+function normalizeStore(store) {
+  return {
+    id: assertId(store?.id, '매장 ID'),
+    name: assertText(store?.name, '매장명', 80),
+    address: assertText(store?.address ?? '', '매장 주소', 200, false),
+    phone: assertText(store?.phone ?? '', '매장 연락처', 40, false),
+    memo: assertText(store?.memo ?? '', '매장 메모', 500, false),
+    isActive: store?.isActive !== false,
+    color: assertColor(store?.color ?? 'purple'),
+  };
+}
+
+function normalizeEmployee(employee) {
+  return {
+    id: assertId(employee?.id, '직원 ID'),
+    name: assertText(employee?.name, '직원명', 80),
+    preference: assertText(employee?.preference ?? '', '직원 메모', 500, false),
+    color: assertColor(employee?.color ?? '#dceeff'),
+    storeIds: uniqueStrings(employee?.storeIds).map((storeId) => assertId(storeId, '근무 가능 매장 ID')),
+    baseShifts: Array.isArray(employee?.baseShifts)
+      ? employee.baseShifts.map(normalizeBaseShift)
+      : [],
+  };
+}
+
+function normalizeBaseShift(rule) {
+  return {
+    id: assertId(rule?.id, '기본 근무 ID'),
+    storeId: assertId(rule?.storeId, '기본 근무 매장 ID'),
+    weekday: assertWeekday(rule?.weekday),
+    templateId: assertId(rule?.templateId, '기본 근무 시간대 ID'),
+    startTime: assertTime(rule?.startTime, '기본 근무 시작 시간'),
+    endTime: assertTime(rule?.endTime, '기본 근무 종료 시간'),
+  };
+}
+
+function normalizeTemplate(template) {
+  const time = String(template?.time ?? '08:00-15:00');
+  const { startTime, endTime } = splitTime(time);
+  return {
+    id: assertId(template?.id, '시간대 ID'),
+    label: assertText(template?.label, '시간대명', 80),
+    time: `${assertTime(startTime, '시간대 시작 시간')}-${assertTime(endTime, '시간대 종료 시간')}`,
+    color: assertColor(template?.color ?? 'blue'),
+    requiresTimeInput: Boolean(template?.requiresTimeInput),
+  };
+}
+
+function normalizeShift(shift) {
+  const { startTime, endTime } = splitTime(shift?.time);
+  return {
+    id: assertId(shift?.id, '근무 ID'),
+    storeId: assertId(shift?.storeId, '근무 매장 ID'),
+    date: assertDate(shift?.date, '근무일'),
+    employeeId: assertId(shift?.employeeId, '근무 직원 ID'),
+    templateId: shift?.templateId ? assertId(shift.templateId, '근무 시간대 ID') : '',
+    time: `${assertTime(startTime, '근무 시작 시간')}-${assertTime(endTime, '근무 종료 시간')}`,
+    note: assertText(shift?.note ?? '', '근무 메모', 500, false) || undefined,
+  };
+}
+
+function normalizeNote(note) {
+  return {
+    storeId: assertId(note?.storeId, '메모 매장 ID'),
+    date: assertDate(note?.date, '메모 일자'),
+    text: assertText(note?.text ?? '', '특이사항', 1000, false),
+  };
+}
+
+function assertScheduleWritePermissions(auth, currentState, nextState) {
+  assertSectionPermission(auth, 'settings', currentState.stores, nextState.stores, (store) => store.id);
+  assertSectionPermission(auth, 'settings', currentState.templates, nextState.templates, (template) => template.id);
+  assertSectionPermission(auth, 'employees', currentState.employees, nextState.employees, (employee) => employee.id);
+  assertSectionPermission(auth, 'schedule', currentState.shifts, nextState.shifts, (shift) => shift.id);
+  assertSectionPermission(auth, 'notes', currentState.notes, nextState.notes, (note) => `${note.storeId}:${note.date}`);
+}
+
+function assertSectionPermission(auth, menu, currentRows, nextRows, getKey) {
+  const currentMap = toComparableMap(currentRows, getKey);
+  const nextMap = toComparableMap(nextRows, getKey);
+
+  for (const key of nextMap.keys()) {
+    if (!currentMap.has(key) && !hasPermission(auth.permissions, menu, 'create')) {
+      throw new PermissionError('추가 권한이 없습니다.');
+    }
+    if (currentMap.has(key) && currentMap.get(key) !== nextMap.get(key) && !hasPermission(auth.permissions, menu, 'update')) {
+      throw new PermissionError('수정 권한이 없습니다.');
+    }
+  }
+
+  for (const key of currentMap.keys()) {
+    if (!nextMap.has(key) && !hasPermission(auth.permissions, menu, 'delete')) {
+      throw new PermissionError('삭제 권한이 없습니다.');
+    }
+  }
+}
+
+function toComparableMap(rows, getKey) {
+  return new Map(rows.map((row) => [getKey(row), JSON.stringify(sortObject(row))]));
+}
+
+function sortObject(value) {
+  if (Array.isArray(value)) return value.map(sortObject);
+  if (!value || typeof value !== 'object') return value;
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = sortObject(value[key]);
+    return result;
+  }, {});
+}
+
+function assertId(value, label) {
+  const id = String(value ?? '').trim();
+  if (!ID_PATTERN.test(id)) throw new ValidationError(`${label} 형식이 올바르지 않습니다.`);
+  return id;
+}
+
+function assertText(value, label, maxLength, required = true) {
+  const text = String(value ?? '').trim();
+  if (required && !text) throw new ValidationError(`${label}은 필수입니다.`);
+  if (text.length > maxLength) throw new ValidationError(`${label}이 너무 깁니다.`);
+  return text;
+}
+
+function assertDate(value, label) {
+  const date = String(value ?? '').trim();
+  if (!DATE_PATTERN.test(date) || Number.isNaN(new Date(`${date}T00:00:00.000Z`).getTime())) {
+    throw new ValidationError(`${label} 형식이 올바르지 않습니다.`);
+  }
+  return date;
+}
+
+function assertTime(value, label) {
+  const time = String(value ?? '').trim();
+  if (!TIME_PATTERN.test(time)) throw new ValidationError(`${label} 형식이 올바르지 않습니다.`);
+  return time;
+}
+
+function assertWeekday(value) {
+  const weekday = Number(value);
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    throw new ValidationError('요일 형식이 올바르지 않습니다.');
+  }
+  return weekday;
+}
+
+function assertColor(value) {
+  const color = String(value ?? '').trim();
+  if (!HEX_COLOR_PATTERN.test(color) && !COLOR_TOKEN_PATTERN.test(color)) {
+    throw new ValidationError('색상 형식이 올바르지 않습니다.');
+  }
+  return color;
+}
+
+function uniqueStrings(value) {
+  return Array.isArray(value) ? [...new Set(value.map(String).filter(Boolean))] : [];
+}
+
+class ValidationError extends Error {}
+class PermissionError extends Error {}

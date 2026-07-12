@@ -1,21 +1,21 @@
-import { getPool, readJsonBody, requireMethod, sendJson } from './_db.js';
+import { getPool, normalizePermissions, readJsonBody, requireAuth, requireMethod, sendJson } from './_db.js';
 
-const defaultPermissions = {
-  dashboard: { view: true, create: true, update: true, delete: true },
-  schedule: { view: true, create: true, update: true, delete: true },
-  employees: { view: true, create: true, update: true, delete: true },
-  notes: { view: true, create: true, update: true, delete: true },
-  settings: { view: true, create: true, update: true, delete: true },
-};
+const defaultPermissions = normalizePermissions();
 
 export default async function handler(request, response) {
   if (!requireMethod(request, response, ['GET', 'POST', 'PUT'])) return;
 
   try {
     if (request.method === 'GET') {
+      if (!await requireAuth(request, response, { menu: 'settings', action: 'view' })) return;
       sendJson(response, 200, { accounts: await fetchAccounts() });
       return;
     }
+
+    const permission = request.method === 'POST'
+      ? { menu: 'settings', action: 'create' }
+      : { menu: 'settings', action: 'update' };
+    if (!await requireAuth(request, response, permission)) return;
 
     const body = await readJsonBody(request);
     const account = request.method === 'POST'
@@ -24,7 +24,8 @@ export default async function handler(request, response) {
 
     sendJson(response, 200, { account, accounts: await fetchAccounts() });
   } catch (error) {
-    sendJson(response, 500, { message: error instanceof Error ? error.message : '계정 처리 중 오류가 발생했습니다.' });
+    console.error(error);
+    sendJson(response, 500, { message: '계정 처리 중 오류가 발생했습니다.' });
   }
 }
 
@@ -190,19 +191,6 @@ function normalizeAccount(account, requireId = false) {
       : [],
     permissions: normalizePermissions(account.permissions),
   };
-}
-
-function normalizePermissions(permissions) {
-  const result = structuredClone(defaultPermissions);
-  if (!permissions || typeof permissions !== 'object') return result;
-
-  for (const menu of Object.keys(result)) {
-    for (const action of Object.keys(result[menu])) {
-      result[menu][action] = Boolean(permissions[menu]?.[action]);
-    }
-  }
-
-  return result;
 }
 
 function mapAccount(row) {
