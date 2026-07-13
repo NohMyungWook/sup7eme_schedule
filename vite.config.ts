@@ -16,10 +16,17 @@ function loadServerEnv() {
       const index = line.indexOf('=');
       if (index <= 0) return;
 
-      const key = line.slice(0, index);
-      const value = line.slice(index + 1);
+      const key = line.slice(0, index).trim();
+      const value = line.slice(index + 1).trim().replace(/^['"]|['"]$/g, '');
       process.env[key] ??= value;
     });
+}
+
+async function importHandler(filePath: string) {
+  const handlerUrl = pathToFileURL(path.resolve(process.cwd(), filePath));
+  handlerUrl.searchParams.set('updatedAt', String(fs.statSync(filePath).mtimeMs));
+  const { default: handler } = await import(handlerUrl.href);
+  return handler;
 }
 
 export default defineConfig({
@@ -29,22 +36,19 @@ export default defineConfig({
       name: 'local-serverless-api',
       configureServer(server) {
         loadServerEnv();
-        const accountsHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/accounts.js')).href;
-        const loginHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/login.js')).href;
-        const scheduleHandlerUrl = pathToFileURL(path.resolve(process.cwd(), 'api/schedule.js')).href;
 
         server.middlewares.use('/api/accounts', async (request, response) => {
-          const { default: handler } = await import(accountsHandlerUrl);
+          const handler = await importHandler('api/accounts.js');
           await handler(request, response);
         });
 
         server.middlewares.use('/api/login', async (request, response) => {
-          const { default: handler } = await import(loginHandlerUrl);
+          const handler = await importHandler('api/login.js');
           await handler(request, response);
         });
 
         server.middlewares.use('/api/schedule', async (request, response) => {
-          const { default: handler } = await import(scheduleHandlerUrl);
+          const handler = await importHandler('api/schedule.js');
           await handler(request, response);
         });
       },
