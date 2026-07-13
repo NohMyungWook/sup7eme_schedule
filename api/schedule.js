@@ -37,8 +37,7 @@ export default async function handler(request, response) {
     const currentState = await fetchScheduleState();
     assertScheduleWritePermissions(auth, currentState, nextState);
     await saveScheduleState(nextState);
-    const state = await fetchScheduleState();
-    sendJson(response, 200, { state });
+    sendJson(response, 200, { state: nextState });
   } catch (error) {
     if (error instanceof PermissionError) {
       sendJson(response, 403, { message: error.message });
@@ -321,7 +320,10 @@ async function deleteStaleRows(client, state) {
 }
 
 async function deleteStale(client, table, keepIds) {
-  if (!keepIds.length) return;
+  if (!keepIds.length) {
+    await client.query(`delete from ${table}`);
+    return;
+  }
   await client.query(`delete from ${table} where not (id = any($1::text[]))`, [keepIds]);
 }
 
