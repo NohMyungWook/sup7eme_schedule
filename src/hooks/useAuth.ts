@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { defaultPermissionsForRole, normalizeAccountPermissions } from '../domain/permissions';
 import type { AccountPermissions, Role } from '../domain/types';
+import { AUTH_EXPIRED_EVENT } from '../services/apiClient';
 import { loginToApi, logoutFromApi } from '../services/authApi';
 
 const SESSION_KEY = 'sup7eme-session';
@@ -25,6 +26,17 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   const [loginError, setLoginError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  const resetAuthState = useCallback((message = '') => {
+    clearSession();
+    setRole(null);
+    setDisplayName('');
+    setPermissions(defaultPermissionsForRole(null));
+    setLoginId('');
+    setLoginPassword('');
+    setLoginError(message);
+    onLogout();
+  }, [onLogout]);
+
   useEffect(() => {
     const session = loadSession();
     setRole(session?.role ?? null);
@@ -32,6 +44,15 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     setPermissions(session?.permissions ?? defaultPermissionsForRole(session?.role ?? null));
     setIsAuthLoading(false);
   }, []);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      resetAuthState('로그인이 만료되었습니다. 다시 로그인해주세요.');
+    }
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, [resetAuthState]);
 
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,14 +93,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
 
   function logout() {
     void logoutFromApi().catch(() => undefined);
-    clearSession();
-    setRole(null);
-    setDisplayName('');
-    setPermissions(defaultPermissionsForRole(null));
-    setLoginId('');
-    setLoginPassword('');
-    setLoginError('');
-    onLogout();
+    resetAuthState();
   }
 
   return {
