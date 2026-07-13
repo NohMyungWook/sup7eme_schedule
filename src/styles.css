@@ -3549,6 +3549,38 @@ textarea:focus {
   font-weight: 900;
 }
 
+.store-settings-toolbar .store-reorder-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  color: #475569;
+}
+
+.store-settings-toolbar .store-reorder-toggle span {
+  color: #6654e8;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.store-settings-toolbar .store-reorder-toggle.is-active {
+  border-color: #c4b5fd;
+  background: #f1edff;
+  color: #5743d7;
+}
+
+.store-reorder-guide {
+  margin: 0;
+  border-bottom: 1px solid #e6ebf3;
+  padding: 10px 14px;
+  background: #fbfaff;
+  color: #6654e8;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
 .store-settings-list {
   display: grid;
 }
@@ -3572,6 +3604,20 @@ textarea:focus {
   cursor: pointer;
 }
 
+.store-settings-item.is-reordering {
+  grid-template-columns: 46px 52px minmax(0, 1fr) auto;
+  cursor: grab;
+}
+
+.store-settings-item.is-dragging {
+  background: #f8f5ff;
+  opacity: 0.72;
+}
+
+.store-settings-item.is-reordering:active {
+  cursor: grabbing;
+}
+
 .store-settings-item:last-child {
   border-bottom: 0;
 }
@@ -3580,6 +3626,31 @@ textarea:focus {
 .store-settings-item.is-selected {
   background: #fbfaff;
   box-shadow: inset 3px 0 0 #6654e8;
+}
+
+.store-order-controls {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.store-order-controls button {
+  display: grid;
+  width: 30px;
+  height: 20px;
+  border: 1px solid #dbe3ee;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #6654e8;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1;
+  place-items: center;
+}
+
+.store-order-controls button:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
 }
 
 .store-settings-icon {
@@ -3815,11 +3886,20 @@ textarea:focus {
   padding-top: 10px;
 }
 
+.store-editor-actions.has-danger {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .store-editor-actions button {
   border-radius: 9px;
   padding: 10px;
   font-size: 0.84rem;
   font-weight: 900;
+}
+
+.store-editor-actions .danger {
+  background: #fff1f2;
+  color: #dc2626;
 }
 
 .account-settings-layout {
@@ -4825,9 +4905,17 @@ textarea:focus {
     grid-template-columns: 42px minmax(0, 1fr);
   }
 
+  .store-settings-item.is-reordering {
+    grid-template-columns: 36px 42px minmax(0, 1fr);
+  }
+
   .store-settings-meta {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .store-settings-item.is-reordering .store-settings-meta {
+    grid-column: 3;
   }
 
   .store-settings-info > div:first-child {
