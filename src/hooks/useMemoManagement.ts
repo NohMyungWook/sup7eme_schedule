@@ -1,5 +1,4 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { stores as fallbackStores } from '../domain/data';
 import { filterNotesByStore } from '../domain/selectors';
 import type { DayNote, ScheduleState, Store } from '../domain/types';
 import { formatDate } from '../utils/schedule';
@@ -15,9 +14,8 @@ type UseMemoManagementOptions = {
 };
 
 export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDelete, canUpdate, setSchedule }: UseMemoManagementOptions) {
-  const activeStores = stores.length ? stores : fallbackStores;
   const filteredNotes = filterNotesByStore(notes, storeFilter);
-  const [memoStoreId, setMemoStoreId] = useState(activeStores[0].id);
+  const [memoStoreId, setMemoStoreId] = useState(stores[0]?.id ?? '');
   const [memoDate, setMemoDate] = useState(formatDate(new Date()));
   const [memoText, setMemoText] = useState('');
   const [editingMemoKey, setEditingMemoKey] = useState<string | null>(null);
@@ -60,7 +58,7 @@ export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDe
   }
 
   function resetMemoForm() {
-    setMemoStoreId(storeFilter === 'all' ? activeStores[0].id : storeFilter);
+    setMemoStoreId(storeFilter === 'all' ? stores[0]?.id ?? '' : storeFilter);
     setMemoDate(formatDate(new Date()));
     setMemoText('');
     setEditingMemoKey(null);

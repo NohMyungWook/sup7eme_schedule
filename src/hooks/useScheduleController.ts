@@ -1,7 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  stores as fallbackStores,
-} from '../domain/data';
 import { hasPermission } from '../domain/permissions';
 import type {
   ActiveView,
@@ -65,12 +62,12 @@ export function useScheduleController() {
   });
   const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus] =
     usePersistentSchedule(role);
-  const configuredStores = stores.length ? stores : fallbackStores;
+  const configuredStores = stores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
   const [activeSettingsPanel, setActiveSettingsPanel] = useState<SettingsPanel>(loadActiveSettingsPanel);
   const syncedRouteKeyRef = useRef<string | null>(null);
   const isInitialRouteSyncRef = useRef(true);
-  const [storeId, setStoreId] = useState(fallbackStores[0].id);
+  const [storeId, setStoreId] = useState('');
   const [dashboardMonth, setDashboardMonth] = useState(today.slice(0, 7));
   const [employeeStoreFilter, setEmployeeStoreFilter] = useState('all');
   const [noteStoreFilter, setNoteStoreFilter] = useState('all');
@@ -139,7 +136,7 @@ export function useScheduleController() {
 
   useEffect(() => {
     if (!configuredStores.some((store) => store.id === storeId)) {
-      setStoreId(configuredStores[0]?.id ?? fallbackStores[0].id);
+      setStoreId(configuredStores[0]?.id ?? '');
     }
   }, [configuredStores, storeId]);
 
@@ -352,6 +349,21 @@ export function useScheduleController() {
     setSchedule((current) => ({
       ...current,
       stores: nextStores,
+      employees: current.employees.map((employee) => ({
+        ...employee,
+        storeIds: employee.storeIds.filter((employeeStoreId) =>
+          nextStores.some((store) => store.id === employeeStoreId),
+        ),
+        baseShifts: employee.baseShifts.filter((rule) =>
+          nextStores.some((store) => store.id === rule.storeId),
+        ),
+      })),
+      shifts: current.shifts.filter((shift) =>
+        nextStores.some((store) => store.id === shift.storeId),
+      ),
+      notes: current.notes.filter((note) =>
+        nextStores.some((store) => store.id === note.storeId),
+      ),
     }));
   }
 

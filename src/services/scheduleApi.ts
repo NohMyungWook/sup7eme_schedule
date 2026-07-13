@@ -1,4 +1,3 @@
-import { stores as fallbackStores } from '../domain/data';
 import type { ScheduleState } from '../domain/types';
 import { apiRequest } from './apiClient';
 
@@ -25,9 +24,7 @@ export async function saveScheduleStateToApi(state: ScheduleState) {
 }
 
 function normalizeScheduleState(state: Partial<ScheduleState> | undefined): ScheduleState {
-  const stores = Array.isArray(state?.stores) && state.stores.length
-    ? state.stores
-    : fallbackStores;
+  const stores = Array.isArray(state?.stores) ? state.stores : [];
 
   return {
     stores: stores.map((store) => ({

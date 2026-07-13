@@ -1,5 +1,4 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { initialEmployees, stores as fallbackStores } from '../domain/data';
 import { createInitialBaseShiftDraft, createInitialEmployeeDraft } from '../domain/drafts';
 import { filterEmployeesByStore, getStoreEmployees } from '../domain/selectors';
 import type {
@@ -30,15 +29,14 @@ type Options = {
 
 export function useEmployeeManagement(options: Options) {
   const { employees, stores, storeId, storeFilter, activeView, canCreate, canDelete, canUpdate, setStoreId, setDraft, setSchedule, setGenerationMessage } = options;
-  const activeStores = stores.length ? stores : fallbackStores;
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(initialEmployees[0].id);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [employeeDraft, setEmployeeDraft] = useState<EmployeeDraft>(createInitialEmployeeDraft);
   const [selectedEmployeeDraft, setSelectedEmployeeDraftState] = useState<EmployeeDraft>(() => ({
-    name: initialEmployees[0].name,
-    preference: initialEmployees[0].preference,
-    color: initialEmployees[0].color,
-    storeIds: [...initialEmployees[0].storeIds],
+    name: '',
+    preference: '',
+    color: '#dceeff',
+    storeIds: [],
   }));
   const [baseShiftDraft, setBaseShiftDraft] = useState<BaseShiftDraft>(createInitialBaseShiftDraft);
   const [editingBaseShiftIds, setEditingBaseShiftIds] = useState<string[]>([]);
@@ -112,7 +110,7 @@ export function useEmployeeManagement(options: Options) {
 
   function closeEmployeeForm() {
     setShowEmployeeForm(false);
-    setEmployeeDraft(createInitialEmployeeDraft(storeId || activeStores[0]?.id));
+    setEmployeeDraft(createInitialEmployeeDraft(storeId || stores[0]?.id));
   }
 
   function deleteEmployee(employee: Employee) {

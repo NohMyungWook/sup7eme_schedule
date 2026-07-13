@@ -32,10 +32,14 @@ export function StoreManagementSettings({
   const [selectedStoreId, setSelectedStoreId] = useState(stores[0]?.id ?? '');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [draggingStoreId, setDraggingStoreId] = useState<string | null>(null);
+  const [orderedStores, setOrderedStores] = useState<Store[]>(stores);
   const selectedStore = stores.find((store) => store.id === selectedStoreId);
   const activeStore = isAddingStore ? null : selectedStore;
   const [draft, setDraft] = useState<StoreDraft>(() => createStoreDraft(stores[0]));
-  const filteredStores = stores.filter((store) => {
+  const visibleStores = isReorderMode ? orderedStores : stores;
+  const filteredStores = (isReorderMode ? visibleStores : visibleStores.filter((store) => {
     const keyword = searchKeyword.trim().toLowerCase();
     if (!keyword) return true;
 
@@ -44,7 +48,11 @@ export function StoreManagementSettings({
       store.address,
       store.phone,
     ].some((value) => value.toLowerCase().includes(keyword));
-  });
+  }));
+
+  useEffect(() => {
+    if (!isReorderMode) setOrderedStores(stores);
+  }, [isReorderMode, stores]);
 
   useEffect(() => {
     if (!stores.length) {
@@ -78,11 +86,13 @@ export function StoreManagementSettings({
   }, [activeStore?.id, baseShifts, employees]);
 
   function openAddStore() {
+    setIsReorderMode(false);
     setIsAddingStore(true);
     setDraft(createStoreDraft());
   }
 
   function selectStore(storeId: string) {
+    if (isReorderMode) return;
     setSelectedStoreId(storeId);
     setIsAddingStore(false);
   }
@@ -120,6 +130,67 @@ export function StoreManagementSettings({
     setIsAddingStore(false);
   }
 
+  function deleteStore() {
+    if (!activeStore) return;
+    if (stores.length <= 1) {
+      window.alert('최소 1개의 근무지는 필요합니다.');
+      return;
+    }
+    const employeeCount = employees.filter((employee) => employee.storeIds.includes(activeStore.id)).length;
+    const message = employeeCount
+      ? `${activeStore.name} 근무지를 삭제할까요? 연결된 직원 ${employeeCount}명의 근무 가능 매장과 해당 근무지 스케줄도 함께 정리됩니다.`
+      : `${activeStore.name} 근무지를 삭제할까요? 해당 근무지 스케줄도 함께 정리됩니다.`;
+    if (!window.confirm(message)) return;
+
+    const nextStores = stores.filter((store) => store.id !== activeStore.id);
+    onStoresChange(nextStores);
+    setSelectedStoreId(nextStores[0]?.id ?? '');
+    setIsAddingStore(!nextStores.length);
+    setDraft(createStoreDraft(nextStores[0]));
+  }
+
+  function toggleReorderMode() {
+    if (isReorderMode) {
+      onStoresChange(orderedStores);
+    } else {
+      setOrderedStores(stores);
+    }
+    setIsAddingStore(false);
+    setSearchKeyword('');
+    setDraggingStoreId(null);
+    setIsReorderMode((current) => !current);
+  }
+
+  function moveStore(storeId: string, direction: -1 | 1) {
+    const fromIndex = orderedStores.findIndex((store) => store.id === storeId);
+    if (fromIndex < 0) return;
+    const nextStores = reorderStores(orderedStores, fromIndex, fromIndex + direction);
+    if (!nextStores) return;
+    setOrderedStores(nextStores);
+    onStoresChange(nextStores);
+  }
+
+  function reorderStores(storeList: Store[], fromIndex: number, toIndex: number) {
+    if (toIndex < 0 || toIndex >= storeList.length || fromIndex === toIndex) return null;
+    const nextStores = [...storeList];
+    const [movedStore] = nextStores.splice(fromIndex, 1);
+    nextStores.splice(toIndex, 0, movedStore);
+    return nextStores;
+  }
+
+  function handleStoreDragOver(targetStoreId: string) {
+    if (!draggingStoreId || draggingStoreId === targetStoreId) return;
+    const fromIndex = orderedStores.findIndex((store) => store.id === draggingStoreId);
+    const toIndex = orderedStores.findIndex((store) => store.id === targetStoreId);
+    const nextStores = reorderStores(orderedStores, fromIndex, toIndex);
+    if (nextStores) setOrderedStores(nextStores);
+  }
+
+  function finishStoreDrag() {
+    if (draggingStoreId) onStoresChange(orderedStores);
+    setDraggingStoreId(null);
+  }
+
   return (
     <>
       <header className="settings-detail-header">
@@ -129,19 +200,43 @@ export function StoreManagementSettings({
       <div className="store-settings-layout">
         <section className="store-settings-main">
           <div className="store-settings-toolbar">
-            <label><span><SettingsIcon name="search" /></span><input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="근무지 검색 (예: 사당점, 강남점)" /></label>
+            <label><span><SettingsIcon name="search" /></span><input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} disabled={isReorderMode} placeholder={isReorderMode ? '위치 변경 중에는 검색을 사용할 수 없습니다.' : '근무지 검색 (예: 사당점, 강남점)'} /></label>
+            <button className={`store-reorder-toggle ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={toggleReorderMode} aria-pressed={isReorderMode}>
+              <span aria-hidden="true">↕</span>{isReorderMode ? '완료' : '위치 변경'}
+            </button>
             <button className="primary" type="button" onClick={openAddStore}>+ 근무지 추가</button>
           </div>
+          {isReorderMode ? <p className="store-reorder-guide">근무지를 드래그하거나 화살표 버튼으로 순서를 변경하세요. 드래그가 끝나면 순서가 저장됩니다.</p> : null}
           <div className="store-settings-list">
             {filteredStores.map((store) => {
               const employeeCount = employees.filter((employee) => employee.storeIds.includes(store.id)).length;
+              const storeIndex = orderedStores.findIndex((item) => item.id === store.id);
 
               return (
                 <article
-                  className={`store-settings-item ${store.id === activeStore?.id ? 'is-selected' : ''}`}
+                  className={`store-settings-item ${store.id === activeStore?.id ? 'is-selected' : ''} ${isReorderMode ? 'is-reordering' : ''} ${draggingStoreId === store.id ? 'is-dragging' : ''}`}
+                  draggable={isReorderMode}
                   key={store.id}
+                  onDragEnd={finishStoreDrag}
+                  onDragOver={(event) => {
+                    if (!isReorderMode) return;
+                    event.preventDefault();
+                    handleStoreDragOver(store.id);
+                  }}
+                  onDragStart={(event) => {
+                    if (!isReorderMode) return;
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('application/x-kingmw-store', store.id);
+                    setDraggingStoreId(store.id);
+                  }}
                   onClick={() => selectStore(store.id)}
                 >
+                  {isReorderMode ? (
+                    <div className="store-order-controls" onClick={(event) => event.stopPropagation()}>
+                      <button type="button" onClick={() => moveStore(store.id, -1)} disabled={storeIndex <= 0} aria-label={`${store.name} 위로 이동`}>↑</button>
+                      <button type="button" onClick={() => moveStore(store.id, 1)} disabled={storeIndex >= orderedStores.length - 1} aria-label={`${store.name} 아래로 이동`}>↓</button>
+                    </div>
+                  ) : null}
                   <span className={`store-settings-icon ${colorClassName(store.color)}`} style={customColorStyle(store.color)}><SettingsIcon name="building" /></span>
                   <div className="store-settings-info">
                     <div><strong>{store.name}</strong><em className={store.isActive ? 'is-active' : 'is-inactive'}>{store.isActive ? '운영중' : '비활성'}</em></div>
@@ -167,7 +262,11 @@ export function StoreManagementSettings({
             <div className="store-status-field"><span>운영 상태</span><button type="button" className={draft.isActive ? 'is-on' : ''} onClick={() => setDraft((current) => ({ ...current, isActive: !current.isActive }))}><i />{draft.isActive ? '운영중' : '비활성'}</button></div>
             <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}<label className={`color-rainbow-picker ${storeColors.includes(draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label></div></div>
             <label>메모<textarea value={draft.memo} maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))} placeholder="매장 관련 메모를 입력해주세요." rows={5} /><small>{draft.memo.length} / 200</small></label>
-            <div className="store-editor-actions"><button type="button" onClick={resetDraft}>취소</button><button className="primary" type="submit">변경 저장</button></div>
+            <div className={`store-editor-actions ${!isAddingStore && activeStore ? 'has-danger' : ''}`}>
+              {!isAddingStore && activeStore ? <button className="danger" type="button" onClick={deleteStore}>근무지 삭제</button> : null}
+              <button type="button" onClick={resetDraft}>취소</button>
+              <button className="primary" type="submit">변경 저장</button>
+            </div>
           </form>
         </aside>
       </div>

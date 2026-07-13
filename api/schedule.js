@@ -317,6 +317,7 @@ async function deleteStaleRows(client, state) {
   await deleteStale(client, 'public.shifts', state.shifts.map((shift) => shift.id));
   await deleteStale(client, 'public.shift_templates', state.templates.map((template) => template.id));
   await deleteStale(client, 'public.employees', state.employees.map((employee) => employee.id));
+  await deleteStale(client, 'public.stores', state.stores.map((store) => store.id));
 }
 
 async function deleteStale(client, table, keepIds) {
