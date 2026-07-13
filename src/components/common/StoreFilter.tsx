@@ -1,8 +1,7 @@
-import { stores as fallbackStores } from '../../domain/data';
 import type { Store } from '../../domain/types';
 
 type StoreFilterProps = {
-  stores?: Store[];
+  stores: Store[];
   activeStoreId: string;
   totalCount: number;
   ariaLabel: string;
@@ -11,7 +10,7 @@ type StoreFilterProps = {
 };
 
 export function StoreFilter({
-  stores = fallbackStores,
+  stores,
   activeStoreId,
   totalCount,
   ariaLabel,

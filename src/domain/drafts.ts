@@ -1,4 +1,4 @@
-import { initialEmployees, initialTemplates, stores } from './data';
+import { initialEmployees, initialTemplates } from './data';
 import type {
   BaseShiftDraft,
   DraftShift,
@@ -17,13 +17,13 @@ export function createInitialDraft(date: string): DraftShift {
 }
 
 export function createInitialEmployeeDraft(
-  storeId = stores[0].id,
+  storeId = '',
 ): EmployeeDraft {
   return {
     name: '',
     preference: '',
     color: '#dceeff',
-    storeIds: [storeId],
+    storeIds: storeId ? [storeId] : [],
   };
 }
 
