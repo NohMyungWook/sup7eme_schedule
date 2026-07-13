@@ -23,8 +23,7 @@ export function usePersistentSchedule(role: Role | null) {
   const skipNextSaveRef = useRef(false);
   const latestScheduleRef = useRef(schedule);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSavingRef = useRef(false);
-  const hasQueuedSaveRef = useRef(false);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let isMounted = true;
@@ -62,26 +61,24 @@ export function usePersistentSchedule(role: Role | null) {
     };
   }, [role]);
 
-  const saveLatestSchedule = useCallback(async () => {
+  const persistSchedule = useCallback((nextSchedule: ScheduleState) => {
     if (!role || !hasLoadedRef.current) return;
-    if (isSavingRef.current) {
-      hasQueuedSaveRef.current = true;
-      return;
-    }
+    const queuedSave = saveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await saveScheduleStateToApi(nextSchedule);
+      });
+    saveQueueRef.current = queuedSave;
+    return queuedSave;
+  }, [role]);
 
-    isSavingRef.current = true;
+  const saveLatestSchedule = useCallback(async () => {
     try {
-      await saveScheduleStateToApi(latestScheduleRef.current);
+      await persistSchedule(latestScheduleRef.current);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '스케줄 정보를 저장하지 못했습니다.');
-    } finally {
-      isSavingRef.current = false;
-      if (hasQueuedSaveRef.current) {
-        hasQueuedSaveRef.current = false;
-        void saveLatestSchedule();
-      }
     }
-  }, [role]);
+  }, [persistSchedule]);
 
   useEffect(() => {
     latestScheduleRef.current = schedule;
@@ -106,5 +103,34 @@ export function usePersistentSchedule(role: Role | null) {
     setScheduleState(nextSchedule);
   };
 
-  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }] as const;
+  const setScheduleAndSave = useCallback(async (updater: SetStateAction<ScheduleState>) => {
+    const previousSchedule = latestScheduleRef.current;
+    const nextSchedule = typeof updater === 'function'
+      ? updater(previousSchedule)
+      : updater;
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    skipNextSaveRef.current = true;
+    latestScheduleRef.current = nextSchedule;
+    setErrorMessage('');
+    setScheduleState(nextSchedule);
+
+    try {
+      await persistSchedule(nextSchedule);
+    } catch (error) {
+      if (latestScheduleRef.current === nextSchedule) {
+        latestScheduleRef.current = previousSchedule;
+        skipNextSaveRef.current = true;
+        setScheduleState(previousSchedule);
+      }
+      const message = error instanceof Error ? error.message : '스케줄 정보를 저장하지 못했습니다.';
+      setErrorMessage(message);
+      throw error;
+    }
+  }, [persistSchedule]);
+
+  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleAndSave] as const;
 }

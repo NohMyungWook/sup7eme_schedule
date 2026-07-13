@@ -16,8 +16,11 @@ type StoreManagementSettingsProps = {
   stores: Store[];
   employees: Employee[];
   baseShifts: BaseShiftRule[];
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
   onBack: () => void;
-  onStoresChange: (stores: Store[]) => void;
+  onStoresChange: (stores: Store[]) => Promise<void> | void;
 };
 
 const storeColors = ['purple', 'blue', 'green', 'orange', 'red'];
@@ -26,6 +29,9 @@ export function StoreManagementSettings({
   stores,
   employees,
   baseShifts,
+  canCreate,
+  canDelete,
+  canUpdate,
   onBack,
   onStoresChange,
 }: StoreManagementSettingsProps) {
@@ -35,6 +41,7 @@ export function StoreManagementSettings({
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [draggingStoreId, setDraggingStoreId] = useState<string | null>(null);
   const [orderedStores, setOrderedStores] = useState<Store[]>(stores);
+  const [isSaving, setIsSaving] = useState(false);
   const selectedStore = stores.find((store) => store.id === selectedStoreId);
   const activeStore = isAddingStore ? null : selectedStore;
   const [draft, setDraft] = useState<StoreDraft>(() => createStoreDraft(stores[0]));
@@ -86,6 +93,7 @@ export function StoreManagementSettings({
   }, [activeStore?.id, baseShifts, employees]);
 
   function openAddStore() {
+    if (!canCreate) return;
     setIsReorderMode(false);
     setIsAddingStore(true);
     setDraft(createStoreDraft());
@@ -106,8 +114,9 @@ export function StoreManagementSettings({
     setDraft(createStoreDraft(activeStore ?? undefined));
   }
 
-  function saveStore(event: FormEvent<HTMLFormElement>) {
+  async function saveStore(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (activeStore ? !canUpdate : !canCreate) return;
     const name = draft.name.trim();
     if (!name) return;
 
@@ -125,13 +134,20 @@ export function StoreManagementSettings({
       ? stores.map((store) => store.id === activeStore.id ? nextStore : store)
       : [...stores, nextStore];
 
-    onStoresChange(nextStores);
-    setSelectedStoreId(nextStore.id);
-    setIsAddingStore(false);
+    setIsSaving(true);
+    try {
+      await onStoresChange(nextStores);
+      setSelectedStoreId(nextStore.id);
+      setIsAddingStore(false);
+    } catch {
+      // 공통 스케줄 상태에서 저장 오류를 표시하고 기존 DB 상태로 롤백합니다.
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function deleteStore() {
-    if (!activeStore) return;
+  async function deleteStore() {
+    if (!activeStore || !canDelete) return;
     if (stores.length <= 1) {
       window.alert('최소 1개의 근무지는 필요합니다.');
       return;
@@ -143,10 +159,17 @@ export function StoreManagementSettings({
     if (!window.confirm(message)) return;
 
     const nextStores = stores.filter((store) => store.id !== activeStore.id);
-    onStoresChange(nextStores);
-    setSelectedStoreId(nextStores[0]?.id ?? '');
-    setIsAddingStore(!nextStores.length);
-    setDraft(createStoreDraft(nextStores[0]));
+    setIsSaving(true);
+    try {
+      await onStoresChange(nextStores);
+      setSelectedStoreId(nextStores[0]?.id ?? '');
+      setIsAddingStore(!nextStores.length);
+      setDraft(createStoreDraft(nextStores[0]));
+    } catch {
+      // 공통 스케줄 상태에서 저장 오류를 표시하고 기존 DB 상태로 롤백합니다.
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function toggleReorderMode() {
@@ -204,7 +227,7 @@ export function StoreManagementSettings({
             <button className={`store-reorder-toggle ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={toggleReorderMode} aria-pressed={isReorderMode}>
               <span aria-hidden="true">↕</span>{isReorderMode ? '완료' : '위치 변경'}
             </button>
-            <button className="primary" type="button" onClick={openAddStore}>+ 근무지 추가</button>
+            {canCreate ? <button className="primary" type="button" onClick={openAddStore}>+ 근무지 추가</button> : null}
           </div>
           {isReorderMode ? <p className="store-reorder-guide">근무지를 드래그하거나 화살표 버튼으로 순서를 변경하세요. 드래그가 끝나면 순서가 저장됩니다.</p> : null}
           <div className="store-settings-list">
@@ -263,9 +286,9 @@ export function StoreManagementSettings({
             <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}<label className={`color-rainbow-picker ${storeColors.includes(draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label></div></div>
             <label>메모<textarea value={draft.memo} maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))} placeholder="매장 관련 메모를 입력해주세요." rows={5} /><small>{draft.memo.length} / 200</small></label>
             <div className={`store-editor-actions ${!isAddingStore && activeStore ? 'has-danger' : ''}`}>
-              {!isAddingStore && activeStore ? <button className="danger" type="button" onClick={deleteStore}>근무지 삭제</button> : null}
-              <button type="button" onClick={resetDraft}>취소</button>
-              <button className="primary" type="submit">변경 저장</button>
+              {!isAddingStore && activeStore && canDelete ? <button className="danger" type="button" onClick={() => void deleteStore()} disabled={isSaving}>근무지 삭제</button> : null}
+              <button type="button" onClick={resetDraft} disabled={isSaving}>취소</button>
+              <button className="primary" type="submit" disabled={isSaving || (activeStore ? !canUpdate : !canCreate)}>{isSaving ? '저장 중...' : '변경 저장'}</button>
             </div>
           </form>
         </aside>

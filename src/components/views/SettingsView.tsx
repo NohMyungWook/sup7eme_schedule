@@ -22,7 +22,7 @@ type SettingsViewProps = {
   onDelete: (templateId: string) => void;
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onStoresChange: (stores: Store[]) => void;
+  onStoresChange: (stores: Store[]) => Promise<void> | void;
 };
 
 export function SettingsView({
@@ -61,6 +61,9 @@ export function SettingsView({
         stores={stores}
         employees={employees}
         baseShifts={baseShifts}
+        canCreate={canCreate}
+        canDelete={canDelete}
+        canUpdate={canUpdate}
         onBack={() => setActiveSettingsPanel('overview')}
         onStoresChange={onStoresChange}
       />

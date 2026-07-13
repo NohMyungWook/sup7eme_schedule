@@ -60,7 +60,7 @@ export function useScheduleController() {
       setPendingEmployeeDrop(null);
     },
   });
-  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus] =
+  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleAndSave] =
     usePersistentSchedule(role);
   const configuredStores = stores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
@@ -345,8 +345,13 @@ export function useScheduleController() {
   }
 
   function saveStores(nextStores: Store[]) {
-    if (!canUpdateSettings) return;
-    setSchedule((current) => ({
+    const currentIds = new Set(configuredStores.map((store) => store.id));
+    const nextIds = new Set(nextStores.map((store) => store.id));
+    const isCreating = nextStores.some((store) => !currentIds.has(store.id));
+    const isDeleting = configuredStores.some((store) => !nextIds.has(store.id));
+    if ((isCreating && !canCreateSettings) || (isDeleting && !canDeleteSettings)) return;
+    if (!isCreating && !isDeleting && !canUpdateSettings) return;
+    return setScheduleAndSave((current) => ({
       ...current,
       stores: nextStores,
       employees: current.employees.map((employee) => ({
