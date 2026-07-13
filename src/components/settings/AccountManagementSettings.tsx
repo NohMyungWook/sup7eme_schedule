@@ -7,6 +7,7 @@ import {
   roleLabels,
   statusLabels,
 } from './accountSettingsModel';
+import { ListSkeleton } from '../common/Skeleton';
 import { SettingsIcon } from './SettingsIcon';
 import { useAccountManagement } from './useAccountManagement';
 
@@ -67,7 +68,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, onBack
             <div className="account-table-head" role="row">
               <span>이름</span><span>아이디</span><span>역할</span><span>담당 매장</span><span>최근 접속</span><span>상태</span>
             </div>
-            {isLoading ? <p className="account-empty">계정 정보를 불러오고 있습니다.</p> : null}
+            {isLoading ? <ListSkeleton rows={5} /> : null}
             {!isLoading && !filteredAccounts.length ? <p className="account-empty">검색 결과가 없습니다.</p> : null}
             {!isLoading && filteredAccounts.map((account) => (
               <button

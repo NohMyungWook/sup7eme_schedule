@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { LoginPage } from './components/layout/LoginPage';
+import { AppViewSkeleton } from './components/common/Skeleton';
 import { DashboardView } from './components/views/DashboardView';
 import { EmployeesView } from './components/views/EmployeesView';
 import { NotesView } from './components/views/NotesView';
@@ -48,6 +49,8 @@ export default function App() {
       />
     );
   }
+
+  const isInitialScheduleLoading = app.scheduleStatus.isLoading && !app.scheduleStatus.hasLoaded;
 
   return (
     <main
@@ -135,7 +138,9 @@ export default function App() {
           </div>
           <button type="button" onClick={app.logout}>로그아웃</button>
         </div>
-        {app.activeView === 'dashboard' ? (
+        {isInitialScheduleLoading ? (
+          <AppViewSkeleton view={app.activeView} />
+        ) : app.activeView === 'dashboard' ? (
           <DashboardView
             storeId={app.storeId}
             stores={app.stores}
