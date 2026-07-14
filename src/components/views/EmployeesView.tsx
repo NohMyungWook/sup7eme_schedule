@@ -25,6 +25,7 @@ type EmployeesViewProps = {
   selectedEmployeeDraft: EmployeeDraft;
   baseShiftDraft: BaseShiftDraft;
   isManager: boolean;
+  canReorder: boolean;
   setEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>>;
   setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>>;
   setBaseShiftDraft: Dispatch<SetStateAction<BaseShiftDraft>>;
@@ -36,6 +37,7 @@ type EmployeesViewProps = {
   onSelectedEmployeeSave: (event: FormEvent<HTMLFormElement>) => void;
   onEmployeeDelete: (employee: Employee) => void;
   onEmployeeSelect: (employee: Employee) => void;
+  onEmployeesReorder: (employees: Employee[]) => Promise<void> | void;
   onStoreToggle: (storeId: string) => void;
   onSelectedStoreToggle: (storeId: string) => void;
   onBaseShiftWeekdayToggle: (weekday: number) => void;
@@ -50,6 +52,10 @@ type EmployeesViewProps = {
 export function EmployeesView(props: EmployeesViewProps) {
   const { selectedEmployee, employeeDraft, selectedEmployeeDraft, baseShiftDraft, onStoreChange, storeId, stores } = props;
   const [isNameEditing, setIsNameEditing] = useState(false);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [orderedEmployees, setOrderedEmployees] = useState(props.filteredEmployees);
+  const [isOrderSaving, setIsOrderSaving] = useState(false);
+  const [orderError, setOrderError] = useState('');
   const isAddingEmployee = props.showForm;
   const activeEmployeeDraft = isAddingEmployee ? employeeDraft : selectedEmployeeDraft;
   const setActiveEmployeeDraft = isAddingEmployee ? props.setEmployeeDraft : props.setSelectedEmployeeDraft;
@@ -59,6 +65,29 @@ export function EmployeesView(props: EmployeesViewProps) {
   useEffect(() => {
     setIsNameEditing(isAddingEmployee);
   }, [isAddingEmployee, selectedEmployeeId]);
+
+  useEffect(() => {
+    if (!isReorderMode) setOrderedEmployees(props.filteredEmployees);
+  }, [isReorderMode, props.filteredEmployees]);
+
+  async function toggleReorderMode() {
+    setOrderError('');
+    if (!isReorderMode) {
+      setOrderedEmployees(props.filteredEmployees);
+      setIsReorderMode(true);
+      return;
+    }
+
+    setIsOrderSaving(true);
+    try {
+      await props.onEmployeesReorder(orderedEmployees);
+      setIsReorderMode(false);
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : '직원 순서를 저장하지 못했습니다.');
+    } finally {
+      setIsOrderSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (isAddingEmployee || !selectedEmployeeId || !selectedEmployeeDraft.storeIds.length) return;
@@ -71,8 +100,12 @@ export function EmployeesView(props: EmployeesViewProps) {
     <>
       <header className="employee-page-header">
         <div><h1>직원 관리</h1><p>직원 정보와 매장별 기본 근무 요일·시간을 관리합니다.</p></div>
-        <button className="primary employee-add-button" type="button" onClick={props.onAddOpen}>+ 직원 추가</button>
+        <div className="employee-page-actions">
+          {props.canReorder ? <button className={`employee-reorder-button ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={() => void toggleReorderMode()} disabled={isOrderSaving}><span aria-hidden="true">↕</span>{isOrderSaving ? '저장 중...' : isReorderMode ? '완료' : '위치 변경'}</button> : null}
+          <button className="primary employee-add-button" type="button" onClick={props.onAddOpen}>+ 직원 추가</button>
+        </div>
       </header>
+      {orderError ? <p className="employee-order-error">{orderError}</p> : null}
       <StoreFilter
         activeStoreId={props.storeFilter}
         stores={stores}
@@ -89,11 +122,13 @@ export function EmployeesView(props: EmployeesViewProps) {
       />
       <div className="employee-management-layout">
         <EmployeeCardList
-          filteredEmployees={props.filteredEmployees}
+          filteredEmployees={isReorderMode ? orderedEmployees : props.filteredEmployees}
           isAddingEmployee={isAddingEmployee}
           selectedEmployee={selectedEmployee}
           stores={stores}
           onEmployeeSelect={props.onEmployeeSelect}
+          isReorderMode={isReorderMode}
+          onOrderChange={setOrderedEmployees}
         />
         {selectedEmployee || isAddingEmployee ? (
           <aside className="employee-profile-panel">
@@ -104,7 +139,7 @@ export function EmployeesView(props: EmployeesViewProps) {
                   {isNameEditing ? <input value={activeEmployeeDraft.name} onChange={(event) => setActiveEmployeeDraft((current) => ({ ...current, name: event.target.value }))} placeholder="직원 이름" form="selected-employee-form" required /> : <h2>{activeEmployeeDraft.name || '새 직원'}</h2>}
                   {props.isManager && !isAddingEmployee ? <button type="button" className={`profile-name-edit-button ${isNameEditing ? 'is-confirm' : ''}`} aria-label={isNameEditing ? '직원 이름 수정 완료' : '직원 이름 수정'} onClick={() => setIsNameEditing((current) => !current)}>{isNameEditing ? <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10.5 4 4 8-9" /></svg> : <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13.7 3.3a1.8 1.8 0 0 1 2.5 2.5L6.9 15.1l-3.4.8.8-3.4 9.4-9.2Z" /><path d="m12.5 4.5 3 3" /></svg>}</button> : null}
                 </div>
-                <p><span>{activeEmployeeDraft.preference || '직원 메모 없음'}</span><b>{activeEmployeeDraft.storeIds.length}개 매장 가능</b></p>
+                <p>{activeEmployeeDraft.preference ? <span>{activeEmployeeDraft.preference}</span> : null}<b>{activeEmployeeDraft.storeIds.length}개 매장 가능</b></p>
               </div>
             </div>
             {props.isManager ? (

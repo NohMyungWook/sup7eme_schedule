@@ -185,6 +185,7 @@ export default function App() {
             selectedEmployeeDraft={app.selectedEmployeeDraft}
             baseShiftDraft={app.baseShiftDraft}
             isManager={app.canCreateEmployees || app.canUpdateEmployees || app.canDeleteEmployees}
+            canReorder={app.canUpdateEmployees}
             setEmployeeDraft={app.setEmployeeDraft}
             setSelectedEmployeeDraft={app.setSelectedEmployeeDraft}
             setBaseShiftDraft={app.setBaseShiftDraft}
@@ -199,6 +200,7 @@ export default function App() {
             onSelectedEmployeeSave={app.saveSelectedEmployee}
             onEmployeeDelete={app.deleteEmployee}
             onEmployeeSelect={app.selectManagedEmployee}
+            onEmployeesReorder={app.reorderEmployees}
             onStoreToggle={app.toggleDraftStore}
             onSelectedStoreToggle={app.toggleSelectedEmployeeStore}
             onBaseShiftWeekdayToggle={app.toggleBaseShiftWeekday}

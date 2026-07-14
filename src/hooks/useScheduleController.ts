@@ -372,6 +372,18 @@ export function useScheduleController() {
     }));
   }
 
+  function reorderEmployees(orderedEmployees: typeof employees) {
+    if (!canUpdateEmployees) return;
+    const orderedIds = new Set(orderedEmployees.map((employee) => employee.id));
+    const orderedIterator = orderedEmployees[Symbol.iterator]();
+    return setScheduleAndSave((current) => ({
+      ...current,
+      employees: current.employees.map((employee) =>
+        orderedIds.has(employee.id) ? orderedIterator.next().value ?? employee : employee,
+      ),
+    }));
+  }
+
   return {
     stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, activeSettingsPanel,
     setActiveSettingsPanel, storeId,
@@ -407,7 +419,7 @@ export function useScheduleController() {
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
     editingBaseShiftIds, saveTemplate, editTemplate,
-    closeTemplateForm, deleteTemplate, saveStores,
+    closeTemplateForm, deleteTemplate, saveStores, reorderEmployees,
   };
 }
 

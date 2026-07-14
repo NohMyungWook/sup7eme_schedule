@@ -2144,6 +2144,43 @@ button {
   font-weight: 900;
 }
 
+.employee-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.employee-reorder-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #ffffff;
+  color: #526078;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.employee-reorder-button.is-active {
+  border-color: #6654e8;
+  background: #f0eeff;
+  color: #5743d7;
+}
+
+.employee-reorder-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.employee-order-error {
+  margin: 10px 0 0;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .employee-filter {
   display: flex;
   flex-wrap: wrap;
@@ -2177,20 +2214,57 @@ button {
 }
 
 .employee-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
 }
 
 .management-employee-card {
+  position: relative;
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
   border: 1px solid #dbe3ee;
   border-radius: 8px;
-  padding: 13px;
+  padding: 9px 12px;
   background: #ffffff;
   cursor: pointer;
+}
+
+.management-employee-card.is-reordering {
+  grid-template-columns: auto minmax(150px, 1.2fr) minmax(120px, 1fr) auto;
+  cursor: grab;
+}
+
+.employee-order-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.employee-order-controls > span {
+  margin-right: 2px;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+.employee-order-controls button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #d9e0ea;
+  border-radius: 6px;
+  padding: 0;
+  background: #f8fafc;
+  color: #526078;
+  place-items: center;
+}
+
+.employee-order-controls button:disabled {
+  opacity: 0.35;
 }
 
 .management-employee-card:hover,
@@ -2204,7 +2278,7 @@ button {
 
 .management-card-heading {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
 }
@@ -2219,8 +2293,8 @@ button {
 }
 
 .management-card-heading > span {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .management-card-heading strong,
@@ -2239,12 +2313,15 @@ button {
 
 .management-card-summary {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
-  border-top: 1px solid #edf1f7;
-  padding-top: 9px;
   color: #64748b;
   font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.management-employee-card > .store-badges {
+  margin-top: 0;
 }
 
 .management-card-summary strong {
@@ -3389,7 +3466,7 @@ textarea:focus {
   align-items: center;
   border-color: #dfe6ef;
   border-radius: 999px;
-  padding: 8px 10px;
+  padding: 8px 14px 8px 10px;
   cursor: grab;
   box-shadow: 0 8px 24px rgb(15 23 42 / 4%);
 }
@@ -4587,9 +4664,6 @@ textarea:focus {
     grid-template-columns: 224px minmax(0, 1fr);
   }
 
-  .employee-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 1020px) {
@@ -4709,6 +4783,29 @@ textarea:focus {
 }
 
 @media (max-width: 700px) {
+  .management-employee-card,
+  .management-employee-card.is-reordering {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .management-employee-card > .store-badges {
+    grid-column: 1 / -1;
+  }
+
+  .management-employee-card.is-reordering .employee-order-controls {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .employee-page-actions {
+    width: 100%;
+  }
+
+  .employee-page-actions > button {
+    flex: 1;
+  }
+
   :root {
     font-size: 14px;
   }
@@ -5014,7 +5111,6 @@ textarea:focus {
     width: 100%;
   }
 
-  .employee-card-grid,
   .template-settings-list {
     grid-template-columns: 1fr;
   }
