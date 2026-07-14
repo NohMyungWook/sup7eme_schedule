@@ -103,6 +103,20 @@ export function usePersistentSchedule(role: Role | null) {
     setScheduleState(nextSchedule);
   };
 
+  const setScheduleWithoutSave = useCallback((updater: SetStateAction<ScheduleState>) => {
+    const nextSchedule = typeof updater === 'function'
+      ? updater(latestScheduleRef.current)
+      : updater;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    skipNextSaveRef.current = true;
+    latestScheduleRef.current = nextSchedule;
+    setErrorMessage('');
+    setScheduleState(nextSchedule);
+  }, []);
+
   const setScheduleAndSave = useCallback(async (updater: SetStateAction<ScheduleState>) => {
     const previousSchedule = latestScheduleRef.current;
     const nextSchedule = typeof updater === 'function'
@@ -132,5 +146,5 @@ export function usePersistentSchedule(role: Role | null) {
     }
   }, [persistSchedule]);
 
-  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleAndSave] as const;
+  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleAndSave, setScheduleWithoutSave] as const;
 }

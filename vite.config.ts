@@ -42,6 +42,11 @@ export default defineConfig({
           await handler(request, response);
         });
 
+        server.middlewares.use('/api/employee-order', async (request, response) => {
+          const handler = await importHandler('api/employee-order.js');
+          await handler(request, response);
+        });
+
         server.middlewares.use('/api/login', async (request, response) => {
           const handler = await importHandler('api/login.js');
           await handler(request, response);
