@@ -64,7 +64,7 @@ async function fetchScheduleState() {
     notesResult,
   ] = await Promise.all([
     pool.query('select id, name, address, phone, memo, is_active, color from public.stores order by sort_order, name'),
-    pool.query('select id, name, memo, color from public.employees where is_active = true order by created_at'),
+    pool.query('select id, name, memo, color from public.employees where is_active = true order by sort_order, created_at'),
     pool.query('select employee_id, store_id from public.employee_stores'),
     pool.query('select id, employee_id, store_id, weekday, template_id, start_time, end_time from public.employee_base_shifts order by weekday, start_time'),
     pool.query('select id, label, default_start_time, default_end_time, color, requires_time_input from public.shift_templates where is_active = true order by sort_order'),
@@ -224,19 +224,20 @@ async function upsertTemplates(client, templates) {
 }
 
 async function upsertEmployees(client, employees) {
-  for (const employee of employees) {
+  for (const [index, employee] of employees.entries()) {
     await client.query(
       `
-        insert into public.employees (id, name, memo, color, is_active)
-        values ($1, $2, $3, $4, true)
+        insert into public.employees (id, name, memo, color, is_active, sort_order)
+        values ($1, $2, $3, $4, true, $5)
         on conflict (id) do update
         set
           name = excluded.name,
           memo = excluded.memo,
           color = excluded.color,
-          is_active = true
+          is_active = true,
+          sort_order = excluded.sort_order
       `,
-      [employee.id, employee.name, employee.preference, employee.color],
+      [employee.id, employee.name, employee.preference, employee.color, index + 1],
     );
   }
 }

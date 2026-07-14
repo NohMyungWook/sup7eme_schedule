@@ -21,10 +21,7 @@ export function ScheduleEmployeePool({
     const keyword = employeeSearch.trim().toLowerCase();
     if (!keyword) return employees;
 
-    return employees.filter((employee) => {
-      const target = `${employee.name} ${employee.preference}`.toLowerCase();
-      return target.includes(keyword);
-    });
+    return employees.filter((employee) => employee.name.toLowerCase().includes(keyword));
   }, [employeeSearch, employees]);
 
   return (
@@ -53,7 +50,7 @@ export function ScheduleEmployeePool({
               }}
             >
               <span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span>
-              <div><strong>{employee.name}</strong><small>{getEmployeeBadge(employee.preference)}</small></div>
+              <div><strong>{employee.name}</strong></div>
             </article>
           ))}
           {!filteredEmployees.length ? <p className="empty-employees">조건에 맞는 직원이 없습니다.</p> : null}
@@ -61,13 +58,4 @@ export function ScheduleEmployeePool({
       </div>
     </section>
   );
-}
-
-function getEmployeeBadge(preference: string) {
-  const value = preference.toLowerCase();
-  if (value.includes('오픈') || value.includes('오전')) return '오픈 가능';
-  if (value.includes('야간') || value.includes('마감')) return '마감 가능';
-  if (value.includes('교육') || value.includes('대타')) return '교육 가능';
-  if (value.includes('미들') || value.includes('오후')) return '미들 선호';
-  return preference || '근무 가능';
 }

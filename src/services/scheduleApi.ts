@@ -39,7 +39,7 @@ function normalizeScheduleState(state: Partial<ScheduleState> | undefined): Sche
     employees: Array.isArray(state?.employees)
       ? state.employees.map((employee) => ({
         ...employee,
-        preference: employee.preference ?? '',
+        preference: normalizeEmployeeMemo(employee.preference),
         color: employee.color ?? '#dceeff',
         storeIds: Array.isArray(employee.storeIds) ? employee.storeIds : [],
         baseShifts: Array.isArray(employee.baseShifts) ? employee.baseShifts : [],
@@ -57,4 +57,9 @@ function normalizeScheduleState(state: Partial<ScheduleState> | undefined): Sche
       }))
       : [],
   };
+}
+
+function normalizeEmployeeMemo(value: unknown) {
+  const memo = typeof value === 'string' ? value : '';
+  return memo === '근무 조건 미입력' || memo === '근무조건 미입력' ? '' : memo;
 }

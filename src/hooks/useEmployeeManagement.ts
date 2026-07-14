@@ -72,7 +72,7 @@ export function useEmployeeManagement(options: Options) {
 
     const newEmployee: Employee = {
       id: crypto.randomUUID(), name,
-      preference: employeeDraft.preference.trim() || '근무 조건 미입력',
+      preference: employeeDraft.preference.trim(),
       color: employeeDraft.color, storeIds: employeeDraft.storeIds, baseShifts: [],
     };
     setSchedule((current) => ({ ...current, employees: [...current.employees, newEmployee] }));
@@ -93,7 +93,7 @@ export function useEmployeeManagement(options: Options) {
       employees: current.employees.map((employee) => employee.id !== selectedEmployee.id ? employee : {
         ...employee,
         name,
-        preference: selectedEmployeeDraft.preference.trim() || '근무 조건 미입력',
+        preference: selectedEmployeeDraft.preference.trim(),
         color: selectedEmployeeDraft.color,
         storeIds: selectedEmployeeDraft.storeIds,
         baseShifts: employee.baseShifts.filter((rule) => selectedEmployeeDraft.storeIds.includes(rule.storeId)),

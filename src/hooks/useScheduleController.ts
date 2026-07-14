@@ -6,6 +6,7 @@ import type {
   Store,
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
+import { saveEmployeeOrder } from '../services/employeeApi';
 import { useAuth } from './useAuth';
 import { useEmployeeManagement } from './useEmployeeManagement';
 import { useMemoManagement } from './useMemoManagement';
@@ -60,7 +61,7 @@ export function useScheduleController() {
       setPendingEmployeeDrop(null);
     },
   });
-  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleAndSave] =
+  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleAndSave, setScheduleWithoutSave] =
     usePersistentSchedule(role);
   const configuredStores = stores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
@@ -372,6 +373,20 @@ export function useScheduleController() {
     }));
   }
 
+  async function reorderEmployees(orderedEmployees: typeof employees) {
+    if (!canUpdateEmployees) return;
+    const orderedIds = new Set(orderedEmployees.map((employee) => employee.id));
+    const orderedIterator = orderedEmployees[Symbol.iterator]();
+    const nextEmployees = employees.map((employee) =>
+      orderedIds.has(employee.id) ? orderedIterator.next().value ?? employee : employee,
+    );
+    await saveEmployeeOrder(nextEmployees.map((employee) => employee.id));
+    setScheduleWithoutSave((current) => ({
+      ...current,
+      employees: nextEmployees,
+    }));
+  }
+
   return {
     stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, activeSettingsPanel,
     setActiveSettingsPanel, storeId,
@@ -407,7 +422,7 @@ export function useScheduleController() {
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
     editingBaseShiftIds, saveTemplate, editTemplate,
-    closeTemplateForm, deleteTemplate, saveStores,
+    closeTemplateForm, deleteTemplate, saveStores, reorderEmployees,
   };
 }
 
