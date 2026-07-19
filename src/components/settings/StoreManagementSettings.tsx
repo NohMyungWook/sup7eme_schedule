@@ -42,6 +42,7 @@ export function StoreManagementSettings({
   const [draggingStoreId, setDraggingStoreId] = useState<string | null>(null);
   const [orderedStores, setOrderedStores] = useState<Store[]>(stores);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const selectedStore = stores.find((store) => store.id === selectedStoreId);
   const activeStore = isAddingStore ? null : selectedStore;
   const [draft, setDraft] = useState<StoreDraft>(() => createStoreDraft(stores[0]));
@@ -135,12 +136,13 @@ export function StoreManagementSettings({
       : [...stores, nextStore];
 
     setIsSaving(true);
+    setErrorMessage('');
     try {
       await onStoresChange(nextStores);
       setSelectedStoreId(nextStore.id);
       setIsAddingStore(false);
-    } catch {
-      // 공통 스케줄 상태에서 저장 오류를 표시하고 기존 DB 상태로 롤백합니다.
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '근무지 정보를 저장하지 못했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -160,28 +162,38 @@ export function StoreManagementSettings({
 
     const nextStores = stores.filter((store) => store.id !== activeStore.id);
     setIsSaving(true);
+    setErrorMessage('');
     try {
       await onStoresChange(nextStores);
       setSelectedStoreId(nextStores[0]?.id ?? '');
       setIsAddingStore(!nextStores.length);
       setDraft(createStoreDraft(nextStores[0]));
-    } catch {
-      // 공통 스케줄 상태에서 저장 오류를 표시하고 기존 DB 상태로 롤백합니다.
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '근무지를 삭제하지 못했습니다.');
     } finally {
       setIsSaving(false);
     }
   }
 
-  function toggleReorderMode() {
+  async function toggleReorderMode() {
     if (isReorderMode) {
-      onStoresChange(orderedStores);
+      setIsSaving(true);
+      setErrorMessage('');
+      try {
+        await onStoresChange(orderedStores);
+        setIsReorderMode(false);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : '근무지 순서를 저장하지 못했습니다.');
+      } finally {
+        setIsSaving(false);
+      }
     } else {
       setOrderedStores(stores);
+      setIsReorderMode(true);
     }
     setIsAddingStore(false);
     setSearchKeyword('');
     setDraggingStoreId(null);
-    setIsReorderMode((current) => !current);
   }
 
   function moveStore(storeId: string, direction: -1 | 1) {
@@ -190,7 +202,6 @@ export function StoreManagementSettings({
     const nextStores = reorderStores(orderedStores, fromIndex, fromIndex + direction);
     if (!nextStores) return;
     setOrderedStores(nextStores);
-    onStoresChange(nextStores);
   }
 
   function reorderStores(storeList: Store[], fromIndex: number, toIndex: number) {
@@ -210,7 +221,6 @@ export function StoreManagementSettings({
   }
 
   function finishStoreDrag() {
-    if (draggingStoreId) onStoresChange(orderedStores);
     setDraggingStoreId(null);
   }
 
@@ -224,12 +234,13 @@ export function StoreManagementSettings({
         <section className="store-settings-main">
           <div className="store-settings-toolbar">
             <label><span><SettingsIcon name="search" /></span><input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} disabled={isReorderMode} placeholder={isReorderMode ? '위치 변경 중에는 검색을 사용할 수 없습니다.' : '근무지 검색 (예: 사당점, 강남점)'} /></label>
-            <button className={`store-reorder-toggle ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={toggleReorderMode} aria-pressed={isReorderMode}>
-              <span aria-hidden="true">↕</span>{isReorderMode ? '완료' : '위치 변경'}
+            <button className={`store-reorder-toggle ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={() => void toggleReorderMode()} aria-pressed={isReorderMode} disabled={isSaving}>
+              <span aria-hidden="true">↕</span>{isSaving ? '저장 중...' : isReorderMode ? '완료' : '위치 변경'}
             </button>
             {canCreate ? <button className="primary" type="button" onClick={openAddStore}>+ 근무지 추가</button> : null}
           </div>
-          {isReorderMode ? <p className="store-reorder-guide">근무지를 드래그하거나 화살표 버튼으로 순서를 변경하세요. 드래그가 끝나면 순서가 저장됩니다.</p> : null}
+          {isReorderMode ? <p className="store-reorder-guide">근무지를 드래그하거나 화살표 버튼으로 순서를 변경한 뒤 완료를 눌러주세요.</p> : null}
+          {errorMessage ? <p className="store-save-error">{errorMessage}</p> : null}
           <div className="store-settings-list">
             {filteredStores.map((store) => {
               const employeeCount = employees.filter((employee) => employee.storeIds.includes(store.id)).length;

@@ -56,6 +56,11 @@ export default defineConfig({
           const handler = await importHandler('api/schedule.js');
           await handler(request, response);
         });
+
+        server.middlewares.use('/api/stores', async (request, response) => {
+          const handler = await importHandler('api/stores.js');
+          await handler(request, response);
+        });
       },
     },
   ],
