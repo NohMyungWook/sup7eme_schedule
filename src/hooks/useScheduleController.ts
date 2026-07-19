@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hasPermission } from '../domain/permissions';
 import type {
   ActiveView,
@@ -7,6 +7,7 @@ import type {
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
 import { saveEmployeeOrder } from '../services/employeeApi';
+import { fetchAdminShifts, runScheduleAction } from '../services/shiftApi';
 import { deleteStoreFromApi, saveStoresToApi } from '../services/storeApi';
 import { useAuth } from './useAuth';
 import { useEmployeeManagement } from './useEmployeeManagement';
@@ -14,17 +15,11 @@ import { useMemoManagement } from './useMemoManagement';
 import { usePersistentSchedule } from './usePersistentSchedule';
 import { useShiftManagement } from './useShiftManagement';
 import { useTemplateManagement } from './useTemplateManagement';
-import {
-  addDays,
-  formatDate,
-  getWeekDays,
-  getWeekStart,
-  toDate,
-} from "../utils/schedule";
+import { addDays, formatDate, getMonthDays, getWeekDays, getWeekStart } from "../utils/schedule";
 
 const ACTIVE_VIEW_SESSION_KEY = 'kingmw-active-view';
 const activeViews: ActiveView[] = ['dashboard', 'schedule', 'employees', 'notes', 'settings'];
-const settingsPanels: SettingsPanel[] = ['overview', 'templates', 'stores', 'accounts'];
+const settingsPanels: SettingsPanel[] = ['overview', 'templates', 'stores', 'accounts', 'leave-requests', 'rules'];
 
 function loadActiveView(): ActiveView {
   const routeView = getRouteView();
@@ -41,6 +36,7 @@ function loadActiveSettingsPanel(): SettingsPanel {
 export function useScheduleController() {
   const today = formatDate(new Date());
   const {
+    user,
     role,
     displayName,
     permissions,
@@ -53,6 +49,7 @@ export function useScheduleController() {
     isAuthLoading,
     login,
     logout,
+    markPasswordChanged,
   } = useAuth({
     onLogin: () => setActiveView('schedule'),
     onLogout: () => {
@@ -64,7 +61,14 @@ export function useScheduleController() {
   });
   const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleWithoutSave, waitForPendingSaves] =
     usePersistentSchedule(role);
-  const configuredStores = stores;
+  const configuredStores = useMemo(
+    () => stores.filter((store) => store.isActive),
+    [stores],
+  );
+  const activeEmployees = useMemo(
+    () => employees.filter((employee) => employee.isActive !== false && employee.employmentStatus !== 'terminated'),
+    [employees],
+  );
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
   const [activeSettingsPanel, setActiveSettingsPanel] = useState<SettingsPanel>(loadActiveSettingsPanel);
   const syncedRouteKeyRef = useRef<string | null>(null);
@@ -77,8 +81,14 @@ export function useScheduleController() {
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [generationMessage, setGenerationMessage] = useState('');
+  const [isShiftRangeLoading, setIsShiftRangeLoading] = useState(false);
+  const shiftRequestCountRef = useRef(0);
 
-  const isManager = role === 'manager';
+  useEffect(() => {
+    setGenerationMessage('');
+  }, [activeView]);
+
+  const isManager = role === 'manager' || role === 'super_admin';
   const canViewDashboard = hasPermission(permissions, 'dashboard', 'view');
   const canViewSchedule = hasPermission(permissions, 'schedule', 'view');
   const canViewEmployees = hasPermission(permissions, 'employees', 'view');
@@ -96,6 +106,11 @@ export function useScheduleController() {
   const canCreateSettings = hasPermission(permissions, 'settings', 'create');
   const canUpdateSettings = hasPermission(permissions, 'settings', 'update');
   const canDeleteSettings = hasPermission(permissions, 'settings', 'delete');
+  const canViewAccounts = hasPermission(permissions, 'accounts', 'view');
+  const canCreateAccounts = hasPermission(permissions, 'accounts', 'create');
+  const canUpdateAccounts = hasPermission(permissions, 'accounts', 'update');
+  const canViewLeaveRequests = hasPermission(permissions, 'leaveRequests', 'view');
+  const canUpdateLeaveRequests = hasPermission(permissions, 'leaveRequests', 'update');
   const visibleShifts = getStoreShifts(shifts, storeId);
   const {
     draft,
@@ -122,18 +137,20 @@ export function useScheduleController() {
     copyPreviousWeek,
     addDraggedEmployee,
     selectDroppedEmployeeTemplate,
+    isShiftSaving,
   } = useShiftManagement({
     canCreate: canCreateSchedule,
     canDelete: canDeleteSchedule,
     canUpdate: canUpdateSchedule,
     days,
-    employees,
+    employees: activeEmployees,
     selectedDate,
     setSelectedDate,
     setSchedule,
     storeId,
     templates,
     visibleShifts,
+    setGenerationMessage,
   });
 
   useEffect(() => {
@@ -141,6 +158,55 @@ export function useScheduleController() {
       setStoreId(configuredStores[0]?.id ?? '');
     }
   }, [configuredStores, storeId]);
+
+  const loadShiftRange = useCallback(async (targetStoreId: string, startDate: string, endDate: string) => {
+    if (!isManager || !targetStoreId || !startDate || !endDate) return;
+    shiftRequestCountRef.current += 1;
+    setIsShiftRangeLoading(true);
+    try {
+      const loadedShifts = await fetchAdminShifts(targetStoreId, startDate, endDate);
+      setScheduleWithoutSave((current) => ({
+        ...current,
+        shifts: [
+          ...current.shifts.filter((shift) => !(shift.storeId === targetStoreId && shift.date >= startDate && shift.date <= endDate)),
+          ...loadedShifts,
+        ],
+      }));
+    } catch (error) {
+      if (activeView === 'schedule') setGenerationMessage(error instanceof Error ? error.message : '스케줄을 불러오지 못했습니다.');
+    } finally {
+      shiftRequestCountRef.current = Math.max(0, shiftRequestCountRef.current - 1);
+      if (shiftRequestCountRef.current === 0) setIsShiftRangeLoading(false);
+    }
+  }, [activeView, isManager, setScheduleWithoutSave]);
+
+  useEffect(() => {
+    if (!storeId || !isManager) return;
+    if (activeView === 'dashboard') {
+      const monthDays = getMonthDays(dashboardMonth);
+      void loadShiftRange(storeId, monthDays[0], monthDays[monthDays.length - 1]);
+    } else if (activeView === 'schedule') {
+      void loadShiftRange(storeId, addDays(days[0], -1), addDays(days[6], 35));
+    }
+  }, [activeView, dashboardMonth, days, isManager, loadShiftRange, storeId]);
+
+  useEffect(() => {
+    if (!isManager) return;
+    const refreshVisibleRange = () => {
+      if (activeView === 'dashboard') {
+        const monthDays = getMonthDays(dashboardMonth);
+        void loadShiftRange(storeId, monthDays[0], monthDays[monthDays.length - 1]);
+      } else if (activeView === 'schedule') {
+        void loadShiftRange(storeId, addDays(days[0], -1), addDays(days[6], 35));
+      }
+    };
+    window.addEventListener('sup7eme:data-changed', refreshVisibleRange);
+    window.addEventListener('focus', refreshVisibleRange);
+    return () => {
+      window.removeEventListener('sup7eme:data-changed', refreshVisibleRange);
+      window.removeEventListener('focus', refreshVisibleRange);
+    };
+  }, [activeView, dashboardMonth, days, isManager, loadShiftRange, storeId]);
 
   const {
     selectedEmployeeId,
@@ -172,6 +238,8 @@ export function useScheduleController() {
     editBaseShift,
     cancelBaseShiftEdit,
     editingBaseShiftIds,
+    employeeSearch, setEmployeeSearch, employeeStatusFilter, setEmployeeStatusFilter,
+    isEmployeeSaving,
   } = useEmployeeManagement({
     canCreate: canCreateEmployees,
     canDelete: canDeleteEmployees,
@@ -194,6 +262,7 @@ export function useScheduleController() {
     editTemplate,
     closeTemplateForm,
     deleteTemplate,
+    isTemplateSaving,
   } = useTemplateManagement({
     templates,
     draft,
@@ -218,6 +287,7 @@ export function useScheduleController() {
     editMemo,
     deleteMemo,
     resetMemoForm,
+    isMemoSaving,
   } = useMemoManagement({
     canCreate: canCreateNotes,
     canDelete: canDeleteNotes,
@@ -303,60 +373,31 @@ export function useScheduleController() {
     setActiveView('schedule');
   }
 
-  function generateBaseWeek() {
+  async function generateBaseWeek() {
     if (!canCreateSchedule) {
       return;
     }
-
-    const generated = days.flatMap((date) => {
-      const weekday = toDate(date).getDay();
-
-      return storeEmployees.flatMap((employee) =>
-        employee.baseShifts
-          .filter(
-            (rule) => rule.storeId === storeId && rule.weekday === weekday,
-          )
-          .map((rule) => ({
-            id: crypto.randomUUID(),
-            storeId,
-            date,
-            employeeId: employee.id,
-            templateId: rule.templateId,
-            time: `${rule.startTime}-${rule.endTime}`,
-          })),
-      );
-    });
-
-    if (!generated.length) {
-      setGenerationMessage(
-        '이 매장에 등록된 기본 근무 패턴이 없습니다. 직원 정보에서 먼저 등록하세요.',
-      );
-      return;
+    try {
+      const result = await runScheduleAction('generate-base-week', storeId, days[0]);
+      setGenerationMessage(`${result.created}건의 기본 근무를 생성했습니다.${result.skipped ? ` ${result.skipped}건은 중복 또는 휴무로 건너뛰었습니다.` : ''}`);
+      window.dispatchEvent(new CustomEvent('sup7eme:data-changed', { detail: { resources: ['schedule', 'dashboard'] } }));
+    } catch (error) {
+      setGenerationMessage(error instanceof Error ? error.message : '기본 주를 생성하지 못했습니다.');
     }
-
-    setSchedule((current) => ({
-      ...current,
-      shifts: [
-        ...current.shifts.filter(
-          (shift) => !(shift.storeId === storeId && days.includes(shift.date)),
-        ),
-        ...generated,
-      ],
-    }));
-    setGenerationMessage(`${generated.length}건의 기본 근무를 생성했습니다.`);
   }
 
   async function saveStores(nextStores: Store[]) {
-    const currentIds = new Set(configuredStores.map((store) => store.id));
+    const currentIds = new Set(stores.map((store) => store.id));
     const nextIds = new Set(nextStores.map((store) => store.id));
     const isCreating = nextStores.some((store) => !currentIds.has(store.id));
-    const isDeleting = configuredStores.some((store) => !nextIds.has(store.id));
-    if ((isCreating && !canCreateSettings) || (isDeleting && !canDeleteSettings)) return;
-    if (!isCreating && !isDeleting && !canUpdateSettings) return;
+    const isDeleting = stores.some((store) => !nextIds.has(store.id));
+    const deactivatedStore = stores.find((store) => store.isActive && nextStores.some((next) => next.id === store.id && !next.isActive));
+    if ((isCreating && !canCreateSettings) || ((isDeleting || deactivatedStore) && !canDeleteSettings)) return;
+    if (!isCreating && !isDeleting && !deactivatedStore && !canUpdateSettings) return;
 
     await waitForPendingSaves();
-    if (isDeleting) {
-      const deletedStore = configuredStores.find((store) => !nextIds.has(store.id));
+    if (isDeleting || deactivatedStore) {
+      const deletedStore = deactivatedStore ?? stores.find((store) => !nextIds.has(store.id));
       if (!deletedStore) return;
       await deleteStoreFromApi(deletedStore.id);
     } else {
@@ -399,12 +440,16 @@ export function useScheduleController() {
   }
 
   return {
-    stores: configuredStores, employees, shifts, notes, templates, activeView, setActiveView, activeSettingsPanel,
+    stores: configuredStores, allStores: stores, employees, shifts, notes, templates, activeView, setActiveView, activeSettingsPanel,
     setActiveSettingsPanel, storeId,
     setStoreId, dashboardMonth, setDashboardMonth, employeeStoreFilter,
-    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, role, displayName, permissions, loginId,
+    setEmployeeStoreFilter, noteStoreFilter, setNoteStoreFilter, user, role, displayName, permissions, loginId,
     setLoginId, loginPassword, setLoginPassword, loginError, setLoginError,
-    isAuthLoading, scheduleStatus,
+    isAuthLoading, scheduleStatus, isShiftRangeLoading,
+    markPasswordChanged: () => {
+      markPasswordChanged();
+      void scheduleStatus.reload();
+    },
     days, selectedDate, setSelectedDate, draft, setDraft, editingId,
     selectedEmployeeId, setSelectedEmployeeId, showEmployeeForm,
     employeeDraft, setEmployeeDraft, selectedEmployeeDraft,
@@ -412,6 +457,7 @@ export function useScheduleController() {
     generationMessage, memoStoreId, setMemoStoreId, memoDate, setMemoDate,
     memoText, setMemoText, editingMemoKey, draggingShiftId, setDraggingShiftId,
     showShiftModal, isQuickShiftEntry, shiftTimeError, pendingEmployeeDrop,
+    isShiftSaving,
     dragTemplates,
     templateDraft, setTemplateDraft,
     editingTemplateId, isManager, canViewDashboard, canViewSchedule,
@@ -420,6 +466,8 @@ export function useScheduleController() {
     canCreateEmployees, canUpdateEmployees, canDeleteEmployees,
     canCreateNotes, canUpdateNotes, canDeleteNotes,
     canCreateSettings, canUpdateSettings, canDeleteSettings,
+    canViewAccounts, canCreateAccounts, canUpdateAccounts,
+    canViewLeaveRequests, canUpdateLeaveRequests,
     visibleShifts, storeEmployees,
     filteredEmployees, selectedEmployee, scheduleSelectedEmployee,
     selectedEmployeeBaseShifts, filteredNotes, login, logout,
@@ -433,7 +481,10 @@ export function useScheduleController() {
     toggleBaseShiftWeekday, selectBaseShiftTemplate,
     addBaseShift, deleteBaseShift, editBaseShift, cancelBaseShiftEdit,
     editingBaseShiftIds, saveTemplate, editTemplate,
-    closeTemplateForm, deleteTemplate, saveStores, reorderEmployees,
+    employeeSearch, setEmployeeSearch, employeeStatusFilter, setEmployeeStatusFilter,
+    isEmployeeSaving,
+    closeTemplateForm, deleteTemplate, isTemplateSaving, saveStores, reorderEmployees, loadShiftRange,
+    isMemoSaving,
   };
 }
 

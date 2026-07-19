@@ -1,4 +1,3 @@
-import { initialEmployees, initialTemplates } from './data';
 import type {
   BaseShiftDraft,
   DraftShift,
@@ -9,9 +8,9 @@ import type {
 export function createInitialDraft(date: string): DraftShift {
   return {
     date,
-    employeeId: initialEmployees[0].id,
-    templateId: initialTemplates[0].id,
-    time: initialTemplates[0].time,
+    employeeId: '',
+    templateId: '',
+    time: '08:00-15:00',
     note: '',
   };
 }
@@ -30,7 +29,7 @@ export function createInitialEmployeeDraft(
 export function createInitialBaseShiftDraft(): BaseShiftDraft {
   return {
     weekdays: [1],
-    templateId: initialTemplates[0].id,
+    templateId: '',
     startTime: '08:00',
     endTime: '15:00',
   };

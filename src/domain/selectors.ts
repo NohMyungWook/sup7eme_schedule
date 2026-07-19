@@ -1,7 +1,6 @@
-import { stores } from './data';
 import type { DayNote, Employee, Shift, Store } from './types';
 
-export function getStoreName(storeId: string, storeList: Store[] = stores) {
+export function getStoreName(storeId: string, storeList: Store[]) {
   return storeList.find((store) => store.id === storeId)?.name ?? storeId;
 }
 

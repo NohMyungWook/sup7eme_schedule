@@ -17,7 +17,7 @@ type EmployeeBaseShiftSectionProps = {
   storeId: string;
   stores: Store[];
   setBaseShiftDraft: Dispatch<SetStateAction<BaseShiftDraft>>;
-  onBaseShiftAdd: (event: FormEvent<HTMLFormElement>) => void;
+  onBaseShiftAdd: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
   onBaseShiftDelete: (ruleIds: string | string[]) => void;
   onBaseShiftEdit: (ruleIds: string[]) => void;
   onBaseShiftEditCancel: () => void;
@@ -208,9 +208,8 @@ export function EmployeeBaseShiftSection({
           {isManager && isBaseShiftFormOpen ? (
             <form
               className="base-shift-form profile-base-form"
-              onSubmit={(event) => {
-                onBaseShiftAdd(event);
-                setIsBaseShiftFormOpen(false);
+              onSubmit={async (event) => {
+                if (await onBaseShiftAdd(event)) setIsBaseShiftFormOpen(false);
               }}
             >
               <div className="base-form-heading">

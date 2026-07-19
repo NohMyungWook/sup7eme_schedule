@@ -7,6 +7,7 @@ import type {
   ShiftTemplate,
   TemplateDraft,
 } from '../domain/types';
+import { deactivateTemplate, saveTemplateToApi } from '../services/templateApi';
 import { splitShiftTime } from '../utils/schedule';
 
 type UseTemplateManagementOptions = {
@@ -25,6 +26,7 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
   const { templates, draft, baseShiftDraft, canCreate, canDelete, canUpdate, setDraft, setBaseShiftDraft, setSchedule } = options;
   const [templateDraft, setTemplateDraft] = useState<TemplateDraft>(createInitialTemplateDraft);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [isTemplateSaving, setIsTemplateSaving] = useState(false);
 
   useEffect(() => {
     const fallback = templates[0];
@@ -38,25 +40,29 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
     }
   }, [baseShiftDraft.templateId, draft.templateId, setBaseShiftDraft, setDraft, templates]);
 
-  function saveTemplate(event: FormEvent<HTMLFormElement>) {
+  async function saveTemplate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if ((editingTemplateId ? !canUpdate : !canCreate) || !templateDraft.label.trim()) return;
+    if (isTemplateSaving || (editingTemplateId ? !canUpdate : !canCreate) || !templateDraft.label.trim()) return;
     const time = `${templateDraft.startTime}-${templateDraft.endTime}`;
     if (!templateDraft.requiresTimeInput && templateDraft.startTime === templateDraft.endTime) return;
 
+    let savedTemplate;
+    setIsTemplateSaving(true);
+    try {
+      savedTemplate = await saveTemplateToApi(editingTemplateId, { ...templateDraft, label: templateDraft.label.trim() });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '시간대를 저장하지 못했습니다.');
+      return;
+    } finally {
+      setIsTemplateSaving(false);
+    }
     if (editingTemplateId) {
-      setSchedule((current) => ({
-        ...current,
-        templates: current.templates.map((template) => template.id === editingTemplateId ? { ...template, label: templateDraft.label.trim(), time, color: templateDraft.color, requiresTimeInput: templateDraft.requiresTimeInput } : template),
-      }));
+      setSchedule((current) => ({ ...current, templates: current.templates.map((template) => template.id === editingTemplateId ? { ...template, ...savedTemplate } : template) }));
       if (draft.templateId === editingTemplateId) {
         setDraft((current) => ({ ...current, time }));
       }
     } else {
-      setSchedule((current) => ({
-        ...current,
-        templates: [...current.templates, { id: crypto.randomUUID(), label: templateDraft.label.trim(), time, color: templateDraft.color, requiresTimeInput: templateDraft.requiresTimeInput }],
-      }));
+      setSchedule((current) => ({ ...current, templates: [...current.templates, savedTemplate] }));
     }
     closeTemplateForm();
   }
@@ -73,17 +79,20 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
     setTemplateDraft(createInitialTemplateDraft());
   }
 
-  function deleteTemplate(templateId: string) {
-    if (!canDelete || templates.length <= 1 || !window.confirm('이 시간대를 삭제할까요? 사용 중인 근무는 다른 시간대로 자동 전환됩니다.')) return;
+  async function deleteTemplate(templateId: string) {
+    if (isTemplateSaving || !canDelete || templates.length <= 1 || !window.confirm('이 시간대를 비활성화할까요? 과거 근무의 시간과 이름은 유지됩니다.')) return;
     const fallback = templates.find((template) => template.id !== templateId);
     if (!fallback) return;
-
-    setSchedule((current) => ({
-      ...current,
-      templates: current.templates.filter((template) => template.id !== templateId),
-      shifts: current.shifts.map((shift) => shift.templateId === templateId ? { ...shift, templateId: fallback.id } : shift),
-      employees: current.employees.map((employee) => ({ ...employee, baseShifts: employee.baseShifts.map((rule) => rule.templateId === templateId ? { ...rule, templateId: fallback.id } : rule) })),
-    }));
+    setIsTemplateSaving(true);
+    try {
+      await deactivateTemplate(templateId);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '시간대를 비활성화하지 못했습니다.');
+      return;
+    } finally {
+      setIsTemplateSaving(false);
+    }
+    setSchedule((current) => ({ ...current, templates: current.templates.filter((template) => template.id !== templateId) }));
     if (draft.templateId === templateId) setDraft((current) => ({ ...current, templateId: fallback.id, time: fallback.time }));
     if (baseShiftDraft.templateId === templateId) {
       const { startTime, endTime } = splitShiftTime(fallback.time);
@@ -94,6 +103,6 @@ export function useTemplateManagement(options: UseTemplateManagementOptions) {
 
   return {
     templateDraft, setTemplateDraft, editingTemplateId, saveTemplate,
-    editTemplate, closeTemplateForm, deleteTemplate,
+    editTemplate, closeTemplateForm, deleteTemplate, isTemplateSaving,
   };
 }

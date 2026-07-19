@@ -9,6 +9,7 @@ type EmployeeShiftPickerModalProps = {
   templates: ShiftTemplate[];
   onSelect: (templateId: string) => void;
   onClose: () => void;
+  isSaving: boolean;
 };
 
 export function EmployeeShiftPickerModal({
@@ -17,6 +18,7 @@ export function EmployeeShiftPickerModal({
   templates,
   onSelect,
   onClose,
+  isSaving,
 }: EmployeeShiftPickerModalProps) {
   const firstOptionRef = useRef<HTMLButtonElement>(null);
 
@@ -57,6 +59,7 @@ export function EmployeeShiftPickerModal({
               key={template.id}
               ref={template === templates[0] ? firstOptionRef : undefined}
               onClick={() => onSelect(template.id)}
+              disabled={isSaving}
             >
               <span>{template.label}</span>
               <strong>

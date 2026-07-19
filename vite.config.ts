@@ -47,8 +47,58 @@ export default defineConfig({
           await handler(request, response);
         });
 
+        server.middlewares.use('/api/employees', async (request, response) => {
+          const handler = await importHandler('api/employees.js');
+          await handler(request, response);
+        });
+
         server.middlewares.use('/api/login', async (request, response) => {
           const handler = await importHandler('api/login.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/session', async (request, response) => {
+          const handler = await importHandler('api/session.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/shifts', async (request, response) => {
+          const handler = await importHandler('api/shifts.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/schedule-actions', async (request, response) => {
+          const handler = await importHandler('api/schedule-actions.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/schedule-rules', async (request, response) => {
+          const handler = await importHandler('api/schedule-rules.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/leave-requests', async (request, response) => {
+          const handler = await importHandler('api/leave-requests.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/templates', async (request, response) => {
+          const handler = await importHandler('api/templates.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/notes', async (request, response) => {
+          const handler = await importHandler('api/notes.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/me', async (request, response) => {
+          const handler = await importHandler('api/me.js');
+          await handler(request, response);
+        });
+
+        server.middlewares.use('/api/dashboard', async (request, response) => {
+          const handler = await importHandler('api/dashboard.js');
           await handler(request, response);
         });
 

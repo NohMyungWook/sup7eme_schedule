@@ -45,7 +45,7 @@ export function EmployeeCardList({
     <section className="employee-card-grid" aria-label="직원 카드 목록">
       {filteredEmployees.map((employee) => (
         <article
-          className={`management-employee-card ${
+          className={`management-employee-card ${employee.isActive === false || employee.employmentStatus !== 'active' ? 'is-inactive' : ''} ${
             !isAddingEmployee && selectedEmployee?.id === employee.id ? 'is-selected' : ''
           } ${isReorderMode ? 'is-reordering' : ''}`}
           draggable={isReorderMode}
@@ -64,6 +64,7 @@ export function EmployeeCardList({
             <span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span>
             <div>
               <strong>{employee.name}</strong>
+              {employee.isActive === false || employee.employmentStatus !== 'active' ? <em>비활성</em> : null}
               {employee.preference ? <small>{employee.preference}</small> : null}
             </div>
           </div>

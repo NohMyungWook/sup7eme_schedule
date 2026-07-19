@@ -3,6 +3,7 @@ import type { DraftShift, Employee, PendingEmployeeDrop, Shift, ShiftTemplate, S
 import { colorClassName, customColorStyle } from '../../utils/color';
 import { dayLabel, employeeName, formatDate, formatKoreanRange, getMonthDays, sortByTime, templateById, toDate } from '../../utils/schedule';
 import { StoreSelect } from '../common/StoreSelect';
+import { ScheduleGridSkeleton } from '../common/Skeleton';
 import { ShiftModal } from './ShiftModal';
 import { EmployeeShiftPickerModal } from './EmployeeShiftPickerModal';
 import { ScheduleEmployeePool } from './ScheduleEmployeePool';
@@ -24,7 +25,9 @@ type ScheduleViewProps = {
   generationMessage: string;
   showModal: boolean;
   isQuickShiftEntry: boolean;
+  isSaving: boolean;
   timeError: string;
+  isLoading: boolean;
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
@@ -48,6 +51,7 @@ type ScheduleViewProps = {
   onShiftDelete: () => void;
   onModalClose: () => void;
   onShiftSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onVisibleRangeChange: (startDate: string, endDate: string) => void;
 };
 
 export function ScheduleView(props: ScheduleViewProps) {
@@ -76,7 +80,10 @@ export function ScheduleView(props: ScheduleViewProps) {
   function moveMonth(direction: -1 | 1) {
     const [year, month] = visibleMonth.split('-').map(Number);
     const next = new Date(year, month - 1 + direction, 1, 12);
-    setVisibleMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+    const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+    setVisibleMonth(nextMonth);
+    const nextDays = getMonthDays(nextMonth);
+    props.onVisibleRangeChange(nextDays[0], nextDays[nextDays.length - 1]);
   }
 
   function openWeekFromMonth(date: string) {
@@ -99,14 +106,14 @@ export function ScheduleView(props: ScheduleViewProps) {
           <button type="button" className={viewMode === 'week' ? 'is-active' : undefined} onClick={selectWeekMode} aria-label="주간보기">
             <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 10h16M9 10v9M15 10v9" /></svg>
           </button>
-          <button type="button" className={viewMode === 'month' ? 'is-active' : undefined} onClick={() => setViewMode('month')} aria-label="월별보기">
+          <button type="button" className={viewMode === 'month' ? 'is-active' : undefined} onClick={() => { setViewMode('month'); props.onVisibleRangeChange(monthDays[0], monthDays[monthDays.length - 1]); }} aria-label="월별보기">
             <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01M16 17h.01" /></svg>
           </button>
         </div>
         {props.canCreate && viewMode === 'week' ? <div className="week-actions"><button type="button" onClick={props.onCopyPreviousWeek}>지난주 복사</button><button type="button" className="primary" onClick={props.onGenerateBaseWeek}>기본 주 생성</button></div> : null}
       </div>
       {props.generationMessage ? <p className="generation-message" role="status">{props.generationMessage}</p> : null}
-      {viewMode === 'week' ? <div className="schedule-scroll"><section className="schedule-grid" aria-label="주간 스케줄">
+      {viewMode === 'week' ? <div className="schedule-scroll">{props.isLoading && !props.visibleShifts.length ? <ScheduleGridSkeleton /> : <section className="schedule-grid" aria-label="주간 스케줄">
         {props.days.map((date) => {
           const dayShifts = sortByTime(props.visibleShifts.filter((shift) => shift.date === date));
           return (
@@ -125,14 +132,17 @@ export function ScheduleView(props: ScheduleViewProps) {
               <div className="shift-stack">
                 {dayShifts.map((shift) => {
                   const template = templateById(shift.templateId, props.templates);
-                  const name = employeeName(shift.employeeId, props.employees);
-                  return <article className={`shift-card ${colorClassName(template.color)} ${props.draggingShiftId === shift.id ? 'is-dragging' : ''}`} style={customColorStyle(template.color)} draggable={props.canUpdate} key={shift.id} onDragEnd={() => props.setDraggingShiftId(null)} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-kingmw-shift', shift.id); props.setDraggingShiftId(shift.id); }}><button className="shift-card-main" type="button" aria-label={`${name} ${shift.time}${shift.note ? `, ${shift.note}` : ''}`} title={shift.note || undefined} onClick={(event) => { event.stopPropagation(); if (props.canUpdate || props.canDelete) props.onShiftEdit(shift); }}><strong>{name}</strong><span>{shift.time}</span></button></article>;
+                  const color = shift.templateColor ?? template.color;
+                  const name = shift.employeeName || employeeName(shift.employeeId, props.employees);
+                  const conflictLabel = shift.leaveConflictStatus === 'approved' ? '승인 휴무 충돌' : '대기 휴무 충돌';
+                  return <article className={`shift-card ${colorClassName(color)} ${shift.hasLeaveConflict ? 'has-leave-conflict' : ''} ${props.draggingShiftId === shift.id ? 'is-dragging' : ''}`} style={customColorStyle(color)} draggable={props.canUpdate} key={shift.id} onDragEnd={() => props.setDraggingShiftId(null)} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-kingmw-shift', shift.id); props.setDraggingShiftId(shift.id); }}><button className="shift-card-main" type="button" aria-label={`${name} ${shift.time}${shift.hasLeaveConflict ? `, ${conflictLabel}` : ''}${shift.note ? `, ${shift.note}` : ''}`} title={shift.hasLeaveConflict ? `${conflictLabel}${shift.note ? ` · ${shift.note}` : ''}` : shift.note || undefined} onClick={(event) => { event.stopPropagation(); if (props.canUpdate || props.canDelete) props.onShiftEdit(shift); }}><strong>{name}</strong><span>{shift.time}</span>{shift.hasLeaveConflict ? <i aria-label={conflictLabel}>{shift.leaveConflictStatus === 'approved' ? '휴' : '대'}</i> : null}</button></article>;
                 })}
               </div>
+              {props.canCreate && props.selectedEmployeeId ? <button className="mobile-tap-assign" type="button" onClick={(event) => { event.stopPropagation(); props.onEmployeeDrop(props.selectedEmployeeId!, date); }}>+ {employeeName(props.selectedEmployeeId, props.employees)} 배치</button> : null}
             </article>
           );
         })}
-      </section></div> : (
+      </section>}</div> : (
         <section className="month-schedule" aria-label="월별 스케줄">
           <div className="month-weekdays" aria-hidden="true">
             {['일', '월', '화', '수', '목', '금', '토'].map((weekday) => <span key={weekday}>{weekday}</span>)}
@@ -152,9 +162,10 @@ export function ScheduleView(props: ScheduleViewProps) {
                   <div className="month-shift-stack">
                     {dayShifts.map((shift) => {
                       const template = templateById(shift.templateId, props.templates);
+                      const color = shift.templateColor ?? template.color;
                       return (
-                        <span className={`month-shift-pill ${colorClassName(template.color)}`} style={customColorStyle(template.color)} key={shift.id}>
-                          <strong>{employeeName(shift.employeeId, props.employees)}</strong>
+                        <span className={`month-shift-pill ${colorClassName(color)} ${shift.hasLeaveConflict ? 'has-leave-conflict' : ''}`} style={customColorStyle(color)} key={shift.id}>
+                          <strong>{shift.employeeName || employeeName(shift.employeeId, props.employees)}</strong>
                           <small>{shift.time}</small>
                         </span>
                       );
@@ -167,8 +178,8 @@ export function ScheduleView(props: ScheduleViewProps) {
         </section>
       )}
       {props.canCreate && viewMode === 'week' ? <ScheduleEmployeePool employees={props.storeEmployees} selectedEmployeeId={props.selectedEmployeeId} onEmployeeSelect={props.onEmployeeSelect} onTouchDragStart={setTouchEmployeeId} onTouchDragEnd={handleEmployeeTouchEnd} /> : null}
-      {props.pendingEmployeeDrop && props.canCreate ? <EmployeeShiftPickerModal employeeName={employeeName(props.pendingEmployeeDrop.employeeId, props.employees)} date={props.pendingEmployeeDrop.date} templates={props.dragTemplates} onSelect={props.onDropTemplateSelect} onClose={props.onDropPickerClose} /> : null}
-      {props.showModal && (props.canCreate || props.canUpdate || props.canDelete) ? <ShiftModal compact={props.isQuickShiftEntry} days={props.days} employees={props.storeEmployees} templates={props.templates} draft={props.draft} editingId={props.editingId} canDelete={props.canDelete} canSubmit={props.editingId ? props.canUpdate : props.canCreate} timeError={props.timeError} setDraft={props.setDraft} onTemplateSelect={props.onTemplateSelect} onTimeChange={props.onTimeChange} onDelete={props.onShiftDelete} onClose={props.onModalClose} onSubmit={props.onShiftSubmit} /> : null}
+      {props.pendingEmployeeDrop && props.canCreate ? <EmployeeShiftPickerModal employeeName={employeeName(props.pendingEmployeeDrop.employeeId, props.employees)} date={props.pendingEmployeeDrop.date} templates={props.dragTemplates} isSaving={props.isSaving} onSelect={props.onDropTemplateSelect} onClose={props.onDropPickerClose} /> : null}
+      {props.showModal && (props.canCreate || props.canUpdate || props.canDelete) ? <ShiftModal compact={props.isQuickShiftEntry} days={props.days} employees={props.storeEmployees} templates={props.templates} draft={props.draft} editingId={props.editingId} canDelete={props.canDelete} canSubmit={!props.isSaving && (props.editingId ? props.canUpdate : props.canCreate)} timeError={props.timeError} setDraft={props.setDraft} onTemplateSelect={props.onTemplateSelect} onTimeChange={props.onTimeChange} onDelete={props.onShiftDelete} onClose={props.onModalClose} onSubmit={props.onShiftSubmit} /> : null}
     </>
   );
 }

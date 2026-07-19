@@ -1,4 +1,10 @@
 import type { Employee, Shift, ShiftTemplate } from '../domain/types';
+import {
+  parseTimeToMinutes,
+  shiftDurationMinutes,
+} from '../../shared/schedule.js';
+
+export { minutesToTime, parseTimeToMinutes } from '../../shared/schedule.js';
 
 const fallbackTemplate: ShiftTemplate = {
   id: 'fallback',
@@ -43,19 +49,6 @@ export function getMonthDays(month: string) {
   );
 }
 
-export function parseTimeToMinutes(value?: string, allow24 = false) {
-  if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
-  const [hours, minutes] = value.split(':').map(Number);
-  if (
-    minutes < 0 ||
-    minutes > 59 ||
-    hours < 0 ||
-    hours > 24 ||
-    (hours === 24 && (!allow24 || minutes !== 0))
-  ) return null;
-  return hours * 60 + minutes;
-}
-
 export function splitShiftTime(time: string) {
   const [rawStartTime, rawEndTime] = time.split('-');
   const startTime =
@@ -68,21 +61,9 @@ export function splitShiftTime(time: string) {
   };
 }
 
-export function minutesToTime(value: number) {
-  if (value === 1440) return '24:00';
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
 export function shiftDuration(time: string) {
   const [startValue, endValue] = time.split('-');
-  if (!startValue || !endValue) return 0;
-  const start = parseTimeToMinutes(startValue);
-  let end = parseTimeToMinutes(endValue, true);
-  if (start === null || end === null || start === end) return 0;
-  if (end <= start) end += 1440;
-  return end - start;
+  return shiftDurationMinutes(startValue, endValue);
 }
 
 export function coverageGaps(date: string, storeShifts: Shift[]) {
