@@ -1,0 +1,13 @@
+import { useState, type FormEvent } from 'react';
+import type { EmployeeProfile } from '../../services/meApi';
+import { changePassword } from '../../services/authApi';
+
+export function EmployeeProfilePage({ profile, onLogout, passwordChangeRequired = false, onPasswordChanged }: { profile: EmployeeProfile; onLogout: () => void; passwordChangeRequired?: boolean; onPasswordChanged?: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (nextPassword !== confirmPassword) { setMessage('새 비밀번호 확인이 일치하지 않습니다.'); return; } setIsSaving(true); setMessage(''); try { await changePassword(currentPassword, nextPassword); setCurrentPassword(''); setNextPassword(''); setConfirmPassword(''); setMessage('비밀번호를 변경했습니다.'); onPasswordChanged?.(); } catch (error) { setMessage(error instanceof Error ? error.message : '비밀번호를 변경하지 못했습니다.'); } finally { setIsSaving(false); } }
+  return <section className={`employee-page employee-profile-page ${passwordChangeRequired ? 'is-required' : ''}`}><header className="employee-page-heading"><div><span>계정</span><h1>{passwordChangeRequired ? '비밀번호 변경이 필요합니다' : '내 정보'}</h1></div></header><section className="employee-profile-card"><span style={{ background: profile.color }}>{profile.name.slice(0, 1)}</span><div><strong>{profile.name}</strong><p>{profile.username}</p></div></section><section className="employee-profile-stores"><h2>근무 가능 매장</h2><div>{profile.stores.map((store) => <span key={store.id}>{store.name}</span>)}</div></section><form onSubmit={submit}><h2>비밀번호 변경</h2><label>현재 비밀번호<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label><label>새 비밀번호<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} required /></label><label>새 비밀번호 확인<input type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>{message ? <p className="employee-form-message">{message}</p> : null}<button className="primary" type="submit" disabled={isSaving}>{isSaving ? '변경 중...' : '비밀번호 변경'}</button></form>{!passwordChangeRequired ? <button className="employee-logout-button" type="button" onClick={onLogout}>로그아웃</button> : null}</section>;
+}

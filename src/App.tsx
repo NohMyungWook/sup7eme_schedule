@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { LoginPage } from './components/layout/LoginPage';
+import { PasswordChangeGate } from './components/layout/PasswordChangeGate';
 import { AppViewSkeleton } from './components/common/Skeleton';
 import { DashboardView } from './components/views/DashboardView';
 import { EmployeesView } from './components/views/EmployeesView';
 import { NotesView } from './components/views/NotesView';
 import { ScheduleView } from './components/views/ScheduleView';
 import { SettingsView } from './components/views/SettingsView';
+import { EmployeePortal } from './components/employee/EmployeePortal';
 import type { ActiveView, Role } from './domain/types';
 import { useScheduleController } from './hooks/useScheduleController';
 
@@ -39,13 +41,23 @@ export default function App() {
     );
   }
 
+  if (app.user?.mustChangePassword && app.role !== 'employee') {
+    return <PasswordChangeGate displayName={app.displayName} onChanged={app.markPasswordChanged} onLogout={app.logout} />;
+  }
+
+  if (app.role === 'employee' && app.user) {
+    return <EmployeePortal user={app.user} onLogout={app.logout} />;
+  }
+
   if (app.scheduleStatus.errorMessage && !app.employees.length && !app.templates.length) {
     return (
       <AppStatus
         message="스케줄 데이터를 불러오지 못했습니다."
         detail={app.scheduleStatus.errorMessage}
-        actionLabel="로그아웃"
-        onAction={app.logout}
+        actionLabel="다시 시도"
+        onAction={() => void app.scheduleStatus.reload()}
+        secondaryActionLabel="로그아웃"
+        onSecondaryAction={app.logout}
       />
     );
   }
@@ -133,11 +145,12 @@ export default function App() {
         <div className="app-user-chip" aria-label="현재 로그인 사용자">
           <span className="app-user-avatar">{(app.displayName || app.role || '?').slice(0, 1)}</span>
           <div>
-            <span>{app.role === 'manager' ? '매니저' : '직원'}</span>
-            <strong>{app.displayName || (app.role === 'manager' ? '매니저' : '직원')}</strong>
+            <span>{app.role === 'super_admin' ? '최고 관리자' : '매니저'}</span>
+            <strong>{app.displayName || '관리자'}</strong>
           </div>
           <button type="button" onClick={app.logout}>로그아웃</button>
         </div>
+        {app.activeView !== 'schedule' && app.generationMessage ? <p className="generation-message" role="status">{app.generationMessage}</p> : null}
         {isInitialScheduleLoading ? (
           <AppViewSkeleton view={app.activeView} />
         ) : app.activeView === 'dashboard' ? (
@@ -153,15 +166,22 @@ export default function App() {
           />
         ) : app.activeView === 'settings' ? (
           <SettingsView
-            stores={app.stores}
+            stores={app.allStores}
             employees={app.employees}
-            baseShifts={app.employees.flatMap((employee) => employee.baseShifts)}
+            baseShifts={app.employees.filter((employee) => employee.isActive !== false && employee.employmentStatus === 'active').flatMap((employee) => employee.baseShifts)}
             templates={app.templates}
             draft={app.templateDraft}
             editingTemplateId={app.editingTemplateId}
+            isTemplateSaving={app.isTemplateSaving}
             canCreate={app.canCreateSettings}
             canUpdate={app.canUpdateSettings}
+            canManageManagers={app.role === 'super_admin'}
             canDelete={app.canDeleteSettings}
+            canViewAccounts={app.canViewAccounts}
+            canCreateAccounts={app.canCreateAccounts}
+            canUpdateAccounts={app.canUpdateAccounts}
+            canViewLeaveRequests={app.canViewLeaveRequests}
+            canUpdateLeaveRequests={app.canUpdateLeaveRequests}
             activeSettingsPanel={app.activeSettingsPanel}
             setDraft={app.setTemplateDraft}
             setActiveSettingsPanel={app.setActiveSettingsPanel}
@@ -170,6 +190,10 @@ export default function App() {
             onReset={app.closeTemplateForm}
             onSubmit={app.saveTemplate}
             onStoresChange={app.saveStores}
+            onOpenSchedule={(date, storeId) => {
+              app.setStoreId(storeId);
+              app.openScheduleDate(date);
+            }}
           />
         ) : app.activeView === 'employees' ? (
           <EmployeesView
@@ -180,6 +204,9 @@ export default function App() {
             selectedBaseShifts={app.selectedEmployeeBaseShifts}
             storeId={app.storeId}
             storeFilter={app.employeeStoreFilter}
+            searchKeyword={app.employeeSearch}
+            statusFilter={app.employeeStatusFilter}
+            isSaving={app.isEmployeeSaving}
             showForm={app.showEmployeeForm}
             employeeDraft={app.employeeDraft}
             selectedEmployeeDraft={app.selectedEmployeeDraft}
@@ -193,6 +220,8 @@ export default function App() {
               app.setEmployeeStoreFilter(storeId);
               if (storeId !== 'all') app.setStoreId(storeId);
             }}
+            onSearchChange={app.setEmployeeSearch}
+            onStatusFilterChange={app.setEmployeeStatusFilter}
             onStoreChange={app.setStoreId}
             onAddOpen={app.openAddEmployee}
             onFormClose={app.closeEmployeeForm}
@@ -224,6 +253,7 @@ export default function App() {
             canCreate={app.canCreateNotes}
             canUpdate={app.canUpdateNotes}
             canDelete={app.canDeleteNotes}
+            isSaving={app.isMemoSaving}
             onStoreFilterChange={(storeId) => {
               app.setNoteStoreFilter(storeId);
               if (storeId !== 'all' && !app.editingMemoKey) {
@@ -256,7 +286,9 @@ export default function App() {
             generationMessage={app.generationMessage}
             showModal={app.showShiftModal}
             isQuickShiftEntry={app.isQuickShiftEntry}
+            isSaving={app.isShiftSaving}
             timeError={app.shiftTimeError}
+            isLoading={app.isShiftRangeLoading}
             canCreate={app.canCreateSchedule}
             canUpdate={app.canUpdateSchedule}
             canDelete={app.canDeleteSchedule}
@@ -283,6 +315,9 @@ export default function App() {
             onShiftDelete={app.deleteShift}
             onModalClose={app.closeShiftModal}
             onShiftSubmit={app.submitShift}
+            onVisibleRangeChange={(startDate, endDate) => {
+              void app.loadShiftRange(app.storeId, startDate, endDate);
+            }}
           />
         )}
       </section>
@@ -307,7 +342,7 @@ function MobileNavMenu({
   onViewChange,
   onLogout,
 }: MobileNavMenuProps) {
-  const isManager = role === 'manager';
+  const isManager = role === 'manager' || role === 'super_admin';
   const navItems: Array<{ view: ActiveView; label: string }> = [
     { view: 'dashboard', label: '대시보드' },
     { view: 'schedule', label: '스케줄' },
@@ -346,9 +381,11 @@ type AppStatusProps = {
   detail?: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 };
 
-function AppStatus({ message, detail, actionLabel, onAction }: AppStatusProps) {
+function AppStatus({ message, detail, actionLabel, onAction, secondaryActionLabel, onSecondaryAction }: AppStatusProps) {
   return (
     <main className="login-page">
       <section className="login-panel app-status-panel">
@@ -357,6 +394,7 @@ function AppStatus({ message, detail, actionLabel, onAction }: AppStatusProps) {
           {detail ? <p>{detail}</p> : null}
         </div>
         {actionLabel && onAction ? <button type="button" onClick={onAction}>{actionLabel}</button> : null}
+        {secondaryActionLabel && onSecondaryAction ? <button className="secondary" type="button" onClick={onSecondaryAction}>{secondaryActionLabel}</button> : null}
       </section>
     </main>
   );
