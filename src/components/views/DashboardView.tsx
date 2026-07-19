@@ -1,15 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { weekdays } from '../../domain/data';
-import { getStoreEmployees, getStoreName, getStoreShifts } from '../../domain/selectors';
+import { getStoreName, getStoreShifts } from '../../domain/selectors';
 import type { Employee, Shift, Store } from '../../domain/types';
-import {
-  coverageGaps,
-  fullDateLabel,
-  getMonthDays,
-  minutesToTime,
-  shiftDuration,
-  toDate,
-} from '../../utils/schedule';
+import { fetchDashboard, type DashboardData } from '../../services/dashboardApi';
+import { fullDateLabel, getMonthDays, toDate } from '../../utils/schedule';
+import { ListSkeleton } from '../common/Skeleton';
 import { StoreSelect } from '../common/StoreSelect';
 
 type DashboardViewProps = {
@@ -23,83 +18,34 @@ type DashboardViewProps = {
   onDateSelect: (date: string) => void;
 };
 
-export function DashboardView({
-  storeId,
-  stores,
-  month,
-  employees,
-  shifts,
-  onStoreChange,
-  onMonthChange,
-  onDateSelect,
-}: DashboardViewProps) {
+export function DashboardView({ storeId, stores, month, employees, shifts, onStoreChange, onMonthChange, onDateSelect }: DashboardViewProps) {
   const days = useMemo(() => getMonthDays(month), [month]);
-  const storeEmployees = getStoreEmployees(employees, storeId);
   const storeShifts = getStoreShifts(shifts, storeId);
-  const employeeHours = storeEmployees
-    .map((employee) => ({
-      employee,
-      minutes: storeShifts
-        .filter((shift) => shift.employeeId === employee.id && shift.date.startsWith(month))
-        .reduce((total, shift) => total + shiftDuration(shift.time), 0),
-    }))
-    .filter((item) => item.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes);
-  const coverage = days.map((date) => ({
-    date,
-    shifts: storeShifts.filter((shift) => shift.date === date),
-    gaps: coverageGaps(date, storeShifts),
-  }));
-  const gapDays = coverage.filter((day) => day.gaps.length > 0);
-  const totalMinutes = employeeHours.reduce((total, item) => total + item.minutes, 0);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  return (
-    <>
-      <header className="dashboard-header">
-        <div><h1>월간 대시보드</h1><p>근무시간과 비어 있는 운영 시간대를 월 단위로 확인합니다.</p></div>
-        <div className="dashboard-controls">
-          <label>매장<StoreSelect stores={stores} value={storeId} onChange={onStoreChange} /></label>
-          <label>조회 월<input type="month" value={month} onChange={(event) => onMonthChange(event.target.value)} /></label>
-        </div>
-      </header>
-      <section className="dashboard-summary" aria-label="월간 운영 요약">
-        <article><span>등록 근무</span><strong>{storeShifts.filter((shift) => shift.date.startsWith(month)).length}건</strong></article>
-        <article><span>총 근무시간</span><strong>{(totalMinutes / 60).toFixed(1)}시간</strong></article>
-        <article className={gapDays.length ? 'has-warning' : ''}><span>빈 시간 있는 날</span><strong>{gapDays.length}일</strong></article>
-        <article><span>근무 참여 직원</span><strong>{employeeHours.length}명</strong></article>
-      </section>
-      <div className="dashboard-main-grid">
-        <section className="dashboard-panel employee-hours-panel">
-          <div className="dashboard-panel-title"><div><h2>직원별 이번 달 근무시간</h2><p>{getStoreName(storeId, stores)} 배치 기준</p></div></div>
-          <div className="employee-hours-list">
-            {employeeHours.map(({ employee, minutes }) => {
-              const maxMinutes = employeeHours[0]?.minutes || 1;
-              return <div className="employee-hours-item" key={employee.id}><span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span><div><strong>{employee.name}</strong><div><i style={{ width: `${Math.max(4, (minutes / maxMinutes) * 100)}%` }} /></div></div><b>{(minutes / 60).toFixed(1)}시간</b></div>;
-            })}
-            {!employeeHours.length ? <p className="dashboard-empty">이 달에 등록된 직원 근무가 없습니다.</p> : null}
-          </div>
-        </section>
-        <section className="dashboard-panel gap-alert-panel">
-          <div className="dashboard-panel-title"><div><h2>채워야 할 시간</h2><p>24시간 운영 기준 미배치 구간</p></div></div>
-          <div className="gap-alert-list">
-            {gapDays.map((day) => <button type="button" key={day.date} onClick={() => onDateSelect(day.date)}><span>{fullDateLabel(day.date)}</span><strong>{day.gaps.map(([start, end]) => `${minutesToTime(start)}-${minutesToTime(end)}`).join(', ')}</strong></button>)}
-            {!gapDays.length ? <p className="dashboard-empty">모든 날짜의 운영 시간이 채워져 있습니다.</p> : null}
-          </div>
-        </section>
-      </div>
-      <section className="dashboard-panel calendar-panel">
-        <div className="dashboard-panel-title"><div><h2>{month.replace('-', '년 ')}월 운영 현황</h2><p>날짜를 누르면 해당 주 스케줄로 이동합니다.</p></div></div>
-        <div className="month-calendar">
-          {weekdays.map((weekday) => <strong className="month-weekday" key={weekday}>{weekday}</strong>)}
-          {Array.from({ length: toDate(days[0]).getDay() }, (_, index) => <span className="calendar-blank" key={`blank-${index}`} />)}
-          {coverage.map((day) => (
-            <button className={`calendar-day ${day.gaps.length ? 'has-gap' : 'is-covered'}`} type="button" key={day.date} onClick={() => onDateSelect(day.date)}>
-              <span>{toDate(day.date).getDate()}</span><small>{day.shifts.length}명 배치</small>
-              {day.gaps.length ? <em>{day.gaps.length === 1 ? `${minutesToTime(day.gaps[0][0])}-${minutesToTime(day.gaps[0][1])}` : `빈 시간 ${day.gaps.length}구간`}</em> : <em>24시간 완료</em>}
-            </button>
-          ))}
-        </div>
-      </section>
-    </>
-  );
+  useEffect(() => {
+    if (!storeId) return;
+    let mounted = true;
+    setIsLoading(true);
+    setError('');
+    fetchDashboard(storeId, month)
+      .then((next) => { if (mounted) setData(next); })
+      .catch((requestError: Error) => { if (mounted) setError(requestError.message); })
+      .finally(() => { if (mounted) setIsLoading(false); });
+    return () => { mounted = false; };
+  }, [month, shifts, storeId]);
+
+  const gapsByDate = new Map<string, DashboardData['gaps']>();
+  data?.gaps.forEach((gap) => gapsByDate.set(gap.date, [...(gapsByDate.get(gap.date) ?? []), gap]));
+
+  return <>
+    <header className="dashboard-header"><div><h1>월간 대시보드</h1><p>배정 근무시간과 설정된 필요 인원 규칙을 월 단위로 확인합니다.</p></div><div className="dashboard-controls"><label>매장<StoreSelect stores={stores} value={storeId} onChange={onStoreChange} /></label><label>조회 월<input type="month" value={month} onChange={(event) => onMonthChange(event.target.value)} /></label></div></header>
+    {error ? <div className="dashboard-api-error" role="alert">{error}</div> : null}
+    <section className="dashboard-summary" aria-label="월간 운영 요약"><article><span>등록 근무</span><strong>{isLoading ? '—' : `${data?.registeredShifts ?? 0}건`}</strong></article><article><span>총 배정 근무시간</span><strong>{isLoading ? '—' : `${((data?.totalMinutes ?? 0) / 60).toFixed(1)}시간`}</strong></article><article className={data?.gaps.length ? 'has-warning' : ''}><span>인원 부족 구간</span><strong>{isLoading ? '—' : data?.hasCoverageRules ? `${data.gaps.length}건` : '규칙 없음'}</strong></article><article><span>근무 참여 직원</span><strong>{isLoading ? '—' : `${data?.participatingEmployees ?? 0}명`}</strong></article></section>
+    <div className="dashboard-main-grid"><section className="dashboard-panel employee-hours-panel"><div className="dashboard-panel-title"><div><h2>직원별 이번 달 배정 근무시간</h2><p>{getStoreName(storeId, stores)} 배치 기준</p></div></div><div className="employee-hours-list">{isLoading ? <ListSkeleton rows={4} /> : data?.employeeHours.map((item) => { const employee = employees.find((row) => row.id === item.employeeId); const maxMinutes = data.employeeHours[0]?.minutes || 1; return <div className="employee-hours-item" key={item.employeeId}><span style={{ background: employee?.color ?? '#ece9f8' }}>{item.employeeName.slice(0, 1)}</span><div><strong>{item.employeeName}</strong><div><i style={{ width: `${Math.max(4, item.minutes / maxMinutes * 100)}%` }} /></div></div><b>{(item.minutes / 60).toFixed(1)}시간</b></div>; })}{!isLoading && !data?.employeeHours.length ? <p className="dashboard-empty">이 달에 등록된 직원 근무가 없습니다.</p> : null}</div></section><section className="dashboard-panel gap-alert-panel"><div className="dashboard-panel-title"><div><h2>채워야 할 시간</h2><p>스케줄 규칙의 최소 필요 인원 기준</p></div></div><div className="gap-alert-list">{data?.gaps.map((gap, index) => <button type="button" key={`${gap.date}-${gap.startTime}-${index}`} onClick={() => onDateSelect(gap.date)}><span>{fullDateLabel(gap.date)}</span><strong>{gap.startTime}-{gap.endTime} · {gap.assigned}/{gap.required}명</strong></button>)}{!isLoading && data && !data.hasCoverageRules ? <p className="dashboard-empty">등록된 필요 인원 규칙이 없어 빈 시간을 임의로 계산하지 않습니다.</p> : null}{!isLoading && data?.hasCoverageRules && !data.gaps.length ? <p className="dashboard-empty">설정된 필요 인원 규칙을 모두 충족했습니다.</p> : null}</div></section></div>
+    <section className="dashboard-panel store-hours-panel"><div className="dashboard-panel-title"><div><h2>매장별 이번 달 배정 근무시간</h2><p>현재 계정이 조회할 수 있는 담당 매장 기준</p></div></div><div className="store-hours-list">{isLoading ? <ListSkeleton rows={3} /> : (data?.storeHours ?? []).map((item) => <div key={item.storeId}><span>{item.storeName}</span><strong>{(item.minutes / 60).toFixed(1)}시간</strong></div>)}{!isLoading && !data?.storeHours?.length ? <p className="dashboard-empty">이 달에 배정된 매장 근무가 없습니다.</p> : null}</div></section>
+    <section className="dashboard-panel calendar-panel"><div className="dashboard-panel-title"><div><h2>{month.replace('-', '년 ')}월 운영 현황</h2><p>날짜를 누르면 해당 주 스케줄로 이동합니다.</p></div></div><div className="month-calendar">{weekdays.map((weekday) => <strong className="month-weekday" key={weekday}>{weekday}</strong>)}{Array.from({ length: toDate(days[0]).getDay() }, (_, index) => <span className="calendar-blank" key={`blank-${index}`} />)}{days.map((date) => { const dayGaps = gapsByDate.get(date) ?? []; const dayShifts = storeShifts.filter((shift) => shift.date === date); const dayEmployeeCount = new Set(dayShifts.map((shift) => shift.employeeId)).size; return <button className={`calendar-day ${dayGaps.length ? 'has-gap' : 'is-covered'}`} type="button" key={date} onClick={() => onDateSelect(date)}><span>{toDate(date).getDate()}</span><small>{dayEmployeeCount}명 · {dayShifts.length}건</small>{dayGaps.length ? <em>인원 부족 {dayGaps.length}구간</em> : data?.hasCoverageRules ? <em>규칙 충족</em> : <em>필요 인원 미설정</em>}</button>; })}</div></section>
+  </>;
 }

@@ -9,12 +9,14 @@ type TimeTemplateSettingsProps = {
   templates: ShiftTemplate[];
   draft: TemplateDraft;
   editingTemplateId: string | null;
+  isSaving: boolean;
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onBack: () => void;
   onEdit: (template: ShiftTemplate) => void;
+  onDelete: (templateId: string) => void;
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -23,12 +25,14 @@ export function TimeTemplateSettings({
   templates,
   draft,
   editingTemplateId,
+  isSaving,
   canCreate,
   canDelete,
   canUpdate,
   setDraft,
   onBack,
   onEdit,
+  onDelete,
   onReset,
   onSubmit,
 }: TimeTemplateSettingsProps) {
@@ -42,18 +46,17 @@ export function TimeTemplateSettings({
         <section className="template-settings-list-panel">
           <div className="template-settings-toolbar">
             <div><strong>등록된 시간대</strong><span>{templates.length}개</span></div>
-            <button className="primary template-add-button" type="button" onClick={onReset} disabled={!canCreate}>+ 시간대 추가</button>
+            <button className="primary template-add-button" type="button" onClick={onReset} disabled={!canCreate || isSaving}>+ 시간대 추가</button>
           </div>
           <div className="template-settings-list">
-            {templates.map((template, index) => (
+            {templates.map((template) => (
               <article className={`template-settings-card ${editingTemplateId === template.id ? 'is-selected' : ''}`} key={template.id} onClick={() => { if (canUpdate || canDelete) onEdit(template); }}>
                 <span className={`template-time-dot ${colorClassName(template.color)}`} style={customColorStyle(template.color)} aria-hidden="true"><i /></span>
                 <div className="template-settings-main"><div><strong>{template.label}</strong><em className={colorClassName(template.color)} style={customColorStyle(template.color)}>{template.requiresTimeInput ? '직접입력' : '기본'}</em></div><span>{template.requiresTimeInput ? '직접입력' : template.time}</span></div>
-                <div className="template-settings-usage"><span><SettingsIcon name="users" /> 직원 기본 근무 {Math.max(2, 8 - index)}명 사용</span><span>스케줄 {Math.max(4, 32 - index * 5)}건에 적용</span></div>
+                <div className="template-settings-usage"><span><SettingsIcon name="users" /> 직원 기본 근무 {template.baseShiftCount ?? 0}건</span><span>스케줄 {template.scheduleCount ?? 0}건에 적용</span></div>
               </article>
             ))}
           </div>
-          <div className="template-pagination"><button type="button">‹</button><strong>1</strong><button type="button">›</button></div>
         </section>
         <form className="template-settings-form" onSubmit={onSubmit}>
           <div><h2>{editingTemplateId ? '시간대 수정' : '새 시간대 추가'}</h2><p>시작과 종료 시간은 분 단위로 설정할 수 있습니다.</p></div>
@@ -74,8 +77,9 @@ export function TimeTemplateSettings({
           </fieldset>
           <div className="template-preview"><span>미리보기</span><div className={`template-preview-card ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)}><span className={`template-time-dot ${colorClassName(draft.color)}`} style={customColorStyle(draft.color)} aria-hidden="true"><i /></span><div><strong>{draft.label || '시간대 이름'}</strong><small>{draft.requiresTimeInput ? '직접입력' : `${draft.startTime}-${draft.endTime}`}</small></div><em>{draft.requiresTimeInput ? '직접 입력' : '기본'}</em></div><p>미리보기는 스케줄 화면에서의 표시 예시입니다.</p></div>
           <div className="form-actions">
-            <button type="button" onClick={onReset}>{editingTemplateId ? '취소' : '초기화'}</button>
-            <button className="primary" type="submit" disabled={(editingTemplateId ? !canUpdate : !canCreate) || !draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
+            {editingTemplateId && canDelete ? <button className="danger" type="button" onClick={() => onDelete(editingTemplateId)} disabled={isSaving}>운영 중지</button> : null}
+            <button type="button" onClick={onReset} disabled={isSaving}>{editingTemplateId ? '취소' : '초기화'}</button>
+            <button className="primary" type="submit" disabled={isSaving || (editingTemplateId ? !canUpdate : !canCreate) || !draft.label.trim() || (!draft.requiresTimeInput && draft.startTime === draft.endTime)}>{isSaving ? '저장 중...' : editingTemplateId ? '변경 저장' : '시간대 추가'}</button>
           </div>
         </form>
       </div>

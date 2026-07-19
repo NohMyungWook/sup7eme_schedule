@@ -1,10 +1,22 @@
 type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   errorMessage: string;
 };
 
 export const AUTH_EXPIRED_EVENT = 'sup7eme:auth-expired';
+
+export class ApiRequestError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.code = code;
+  }
+}
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
   const response = await fetch(path, {
@@ -17,13 +29,23 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions): P
   const payload = await parseJson(response);
 
   if (!response.ok) {
-    if (response.status === 401 && path !== '/api/login') {
+    if (response.status === 401 && path !== '/api/login' && path !== '/api/session') {
       window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
     }
-    throw new Error(getErrorMessage(payload) ?? options.errorMessage);
+    throw new ApiRequestError(
+      getErrorMessage(payload) ?? options.errorMessage,
+      response.status,
+      getErrorCode(payload) ?? undefined,
+    );
   }
 
   return payload as T;
+}
+
+function getErrorCode(payload: unknown) {
+  return payload && typeof payload === 'object' && 'code' in payload
+    ? String(payload.code)
+    : null;
 }
 
 async function parseJson(response: Response): Promise<unknown> {

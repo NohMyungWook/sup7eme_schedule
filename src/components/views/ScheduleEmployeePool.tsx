@@ -28,7 +28,7 @@ export function ScheduleEmployeePool({
     <section className="schedule-bottom-panel" aria-labelledby="schedule-employee-title">
       <div className="schedule-bottom-main">
         <div className="schedule-bottom-toolbar">
-          <h2 id="schedule-employee-title">미배정 직원 <strong>{filteredEmployees.length}</strong></h2>
+          <h2 id="schedule-employee-title">현재 매장 직원 <strong>{filteredEmployees.length}</strong></h2>
           <label>
             <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
             <input value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} placeholder="직원 검색" />
@@ -37,11 +37,14 @@ export function ScheduleEmployeePool({
         </div>
         <div className="schedule-employee-list">
           {filteredEmployees.map((employee) => (
-            <article
+            <button
+              type="button"
               className={`employee-card schedule-pool-card ${selectedEmployeeId === employee.id ? 'is-selected' : ''}`}
               draggable
               key={employee.id}
               onClick={() => onEmployeeSelect(employee.id)}
+              aria-label={`${employee.name} 직원 선택`}
+              aria-pressed={selectedEmployeeId === employee.id}
               onDragStart={(event) => event.dataTransfer.setData('application/x-kingmw-employee', employee.id)}
               onTouchStart={() => onTouchDragStart?.(employee.id)}
               onTouchEnd={(event) => {
@@ -51,7 +54,7 @@ export function ScheduleEmployeePool({
             >
               <span style={{ background: employee.color }}>{employee.name.slice(0, 1)}</span>
               <div><strong>{employee.name}</strong></div>
-            </article>
+            </button>
           ))}
           {!filteredEmployees.length ? <p className="empty-employees">조건에 맞는 직원이 없습니다.</p> : null}
         </div>

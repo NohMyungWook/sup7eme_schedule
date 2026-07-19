@@ -1,4 +1,4 @@
-export type Role = 'viewer' | 'manager';
+export type Role = 'super_admin' | 'manager' | 'employee';
 
 export type ActiveView =
   | 'dashboard'
@@ -11,7 +11,9 @@ export type SettingsPanel =
   | 'overview'
   | 'templates'
   | 'stores'
-  | 'accounts';
+  | 'accounts'
+  | 'leave-requests'
+  | 'rules';
 
 export type Store = {
   id: string;
@@ -21,9 +23,14 @@ export type Store = {
   memo: string;
   isActive: boolean;
   color: string;
+  employeeCount?: number;
+  baseShiftCount?: number;
+  scheduleCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-export type AccountRole = 'manager' | 'viewer';
+export type AccountRole = Role;
 
 export type AccountStatus = 'active' | 'inactive';
 
@@ -34,7 +41,9 @@ export type AccountPermissionMenu =
   | 'schedule'
   | 'employees'
   | 'notes'
-  | 'settings';
+  | 'settings'
+  | 'leaveRequests'
+  | 'accounts';
 
 export type AccountPermissions = Record<
   AccountPermissionMenu,
@@ -47,9 +56,23 @@ export type AppAccount = {
   displayName: string;
   role: AccountRole;
   status: AccountStatus;
+  employeeId: string | null;
+  employeeName?: string | null;
   storeIds: string[];
   permissions: AccountPermissions;
   lastSignedInAt: string | null;
+  mustChangePassword: boolean;
+};
+
+export type AuthUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role;
+  employeeId: string | null;
+  storeIds: string[];
+  mustChangePassword: boolean;
+  permissions: AccountPermissions;
 };
 
 export type BaseShiftRule = {
@@ -68,6 +91,13 @@ export type Employee = {
   color: string;
   storeIds: string[];
   baseShifts: BaseShiftRule[];
+  isActive?: boolean;
+  employmentStatus?: 'active' | 'inactive' | 'terminated';
+  accountId?: string | null;
+  username?: string | null;
+  accountStatus?: AccountStatus | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type EmployeeDraft = Pick<
@@ -81,6 +111,11 @@ export type ShiftTemplate = {
   time: string;
   color: string;
   requiresTimeInput?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  baseShiftCount?: number;
+  scheduleCount?: number;
 };
 
 export type TemplateDraft = {
@@ -99,6 +134,37 @@ export type Shift = {
   templateId: string;
   time: string;
   note?: string;
+  status?: 'scheduled' | 'cancelled';
+  updatedAt?: string;
+  storeName?: string;
+  employeeName?: string;
+  templateLabel?: string;
+  templateColor?: string;
+  dayNote?: string;
+  hasLeaveConflict?: boolean;
+  leaveConflictStatus?: 'pending' | 'approved' | null;
+};
+
+export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export type LeaveRequest = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  storeId: string;
+  storeName: string;
+  targetDate: string;
+  allDay: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  reason: string;
+  status: LeaveRequestStatus;
+  decisionReason: string;
+  processedByName: string | null;
+  processedAt: string | null;
+  hasScheduleConflict: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DayNote = {

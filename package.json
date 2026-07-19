@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "node --test test/*.test.js",
+    "test:db-health": "node --env-file=.env.local test/db-health.mjs",
+    "test:integration": "node --env-file=.env.local test/integration-api.mjs",
+    "test:ui": "node test/ui-smoke.mjs",
+    "test:ui:employee": "node --env-file=.env.local test/employee-ui-smoke.mjs",
     "preview": "vite preview",
     "lint": "eslint ."
   },

@@ -44,16 +44,22 @@ function ScheduleSkeleton() {
         <SkeletonBlock className="line title" />
         <SkeletonBlock className="circle" />
       </div>
-      <div className="skeleton-schedule-grid">
-        {Array.from({ length: 7 }).map((_, index) => (
-          <div className="skeleton-day" key={index}>
-            <SkeletonBlock className="line medium" />
-            <SkeletonBlock className="pill wide" />
-            <SkeletonBlock className="pill" />
-            <SkeletonBlock className="pill wide" />
-          </div>
-        ))}
-      </div>
+      <ScheduleGridSkeleton />
+    </div>
+  );
+}
+
+export function ScheduleGridSkeleton() {
+  return (
+    <div className="skeleton-schedule-grid" role="status" aria-label="근무 배치를 불러오는 중">
+      {Array.from({ length: 7 }).map((_, index) => (
+        <div className="skeleton-day" key={index}>
+          <SkeletonBlock className="line medium" />
+          <SkeletonBlock className="pill wide" />
+          <SkeletonBlock className="pill" />
+          <SkeletonBlock className="pill wide" />
+        </div>
+      ))}
     </div>
   );
 }

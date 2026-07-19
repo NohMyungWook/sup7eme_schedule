@@ -1,9 +1,18 @@
-import { clearAuthCookie, getPool, normalizePermissions, readJsonBody, requireMethod, sendJson, setAuthCookie } from './_db.js';
-
-const defaultPermissions = normalizePermissions();
+import {
+  clearAuthCookie,
+  getPool,
+  normalizePermissions,
+  readJsonBody,
+  requireMethod,
+  requireSameOrigin,
+  sendApiError,
+  sendJson,
+  setAuthCookie,
+} from './_db.js';
 
 export default async function handler(request, response) {
   if (!requireMethod(request, response, ['POST', 'DELETE'])) return;
+  if (!requireSameOrigin(request, response)) return;
 
   try {
     if (request.method === 'DELETE') {
@@ -28,16 +37,25 @@ export default async function handler(request, response) {
           user_account.username,
           user_account.display_name,
           user_account.role,
-          coalesce(user_permission.permissions, $3::jsonb) as permissions
+          user_account.employee_id,
+          user_account.must_change_password,
+          coalesce(user_permission.permissions, '{}'::jsonb) as permissions,
+          coalesce(
+            (select array_agg(user_store.store_id order by user_store.store_id)
+             from public.app_user_stores user_store
+             where user_store.user_id = user_account.id),
+            '{}'::text[]
+          ) as store_ids
         from public.app_users user_account
         left join public.app_user_permissions user_permission
           on user_permission.user_id = user_account.id
         where user_account.username = $1
           and user_account.password_hash = crypt($2, user_account.password_hash)
           and user_account.is_active = true
+          and user_account.status = 'active'
         limit 1
       `,
-      [username, password, JSON.stringify(defaultPermissions)],
+      [username, password],
     );
 
     const user = rows[0];
@@ -54,14 +72,17 @@ export default async function handler(request, response) {
 
     sendJson(response, 200, {
       user: {
+        id: user.id,
         username: user.username,
         displayName: user.display_name,
         role: user.role,
-        permissions: normalizePermissions(user.permissions),
+        employeeId: user.employee_id,
+        storeIds: user.store_ids ?? [],
+        mustChangePassword: Boolean(user.must_change_password),
+        permissions: normalizePermissions(user.permissions, user.role),
       },
     });
   } catch (error) {
-    console.error(error);
-    sendJson(response, 500, { message: '로그인 중 오류가 발생했습니다.' });
+    sendApiError(response, error, '로그인 중 오류가 발생했습니다.');
   }
 }

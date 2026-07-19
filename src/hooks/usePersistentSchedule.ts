@@ -1,132 +1,75 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Role, ScheduleState } from '../domain/types';
-import {
-  fetchScheduleState,
-  saveScheduleStateToApi,
-} from '../services/scheduleApi';
+import { fetchScheduleState } from '../services/scheduleApi';
 
 const emptySchedule: ScheduleState = {
-  stores: [],
-  employees: [],
-  shifts: [],
-  notes: [],
-  templates: [],
+  stores: [], employees: [], shifts: [], notes: [], templates: [],
 };
-const SAVE_DEBOUNCE_MS = 700;
 
 export function usePersistentSchedule(role: Role | null) {
   const [schedule, setScheduleState] = useState<ScheduleState>(emptySchedule);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const hasLoadedRef = useRef(false);
-  const skipNextSaveRef = useRef(false);
-  const latestScheduleRef = useRef(schedule);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const mountedRef = useRef(true);
+  const isManager = role === 'manager' || role === 'super_admin';
+
+  const reload = useCallback(async (showLoading = false) => {
+    if (!isManager) return;
+    if (showLoading) setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const nextSchedule = await fetchScheduleState();
+      if (!mountedRef.current) return;
+      setScheduleState((current) => ({ ...nextSchedule, shifts: current.shifts }));
+      setHasLoaded(true);
+    } catch (error) {
+      if (mountedRef.current) setErrorMessage(error instanceof Error ? error.message : '스케줄 정보를 불러오지 못했습니다.');
+    } finally {
+      if (mountedRef.current && showLoading) setIsLoading(false);
+    }
+  }, [isManager]);
 
   useEffect(() => {
-    let isMounted = true;
-
+    mountedRef.current = true;
     if (!role) {
-      hasLoadedRef.current = false;
-      setHasLoaded(false);
-      skipNextSaveRef.current = true;
       setScheduleState(emptySchedule);
+      setHasLoaded(false);
       setIsLoading(false);
       setErrorMessage('');
       return;
     }
-
-    setIsLoading(true);
-    setErrorMessage('');
-    fetchScheduleState()
-      .then((nextSchedule) => {
-        if (!isMounted) return;
-        skipNextSaveRef.current = true;
-        setScheduleState(nextSchedule);
-        hasLoadedRef.current = true;
-        setHasLoaded(true);
-      })
-      .catch((error: Error) => {
-        if (!isMounted) return;
-        setErrorMessage(error.message);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [role]);
-
-  const persistSchedule = useCallback((nextSchedule: ScheduleState) => {
-    if (!role || !hasLoadedRef.current) return;
-    const queuedSave = saveQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        await saveScheduleStateToApi(nextSchedule);
-      });
-    saveQueueRef.current = queuedSave;
-    return queuedSave;
-  }, [role]);
-
-  const saveLatestSchedule = useCallback(async () => {
-    try {
-      await persistSchedule(latestScheduleRef.current);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '스케줄 정보를 저장하지 못했습니다.');
+    if (!isManager) {
+      setScheduleState(emptySchedule);
+      setHasLoaded(true);
+      setIsLoading(false);
+      return;
     }
-  }, [persistSchedule]);
+    void reload(true);
+    return () => { mountedRef.current = false; };
+  }, [isManager, reload, role]);
 
   useEffect(() => {
-    latestScheduleRef.current = schedule;
-    if (!role || !hasLoadedRef.current) return;
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false;
-      return;
-    }
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveTimerRef.current = null;
-      void saveLatestSchedule();
-    }, SAVE_DEBOUNCE_MS);
-
+    if (!isManager) return;
+    const handleChanged = () => { void reload(false); };
+    const handleFocus = () => { void reload(false); };
+    window.addEventListener('sup7eme:data-changed', handleChanged);
+    window.addEventListener('focus', handleFocus);
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      window.removeEventListener('sup7eme:data-changed', handleChanged);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [role, saveLatestSchedule, schedule]);
+  }, [isManager, reload]);
 
-  const setSchedule: Dispatch<SetStateAction<ScheduleState>> = (nextSchedule) => {
+  const setSchedule: Dispatch<SetStateAction<ScheduleState>> = (updater) => {
     setErrorMessage('');
-    setScheduleState(nextSchedule);
+    setScheduleState(updater);
   };
-
   const setScheduleWithoutSave = useCallback((updater: SetStateAction<ScheduleState>) => {
-    const nextSchedule = typeof updater === 'function'
-      ? updater(latestScheduleRef.current)
-      : updater;
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    skipNextSaveRef.current = true;
-    latestScheduleRef.current = nextSchedule;
     setErrorMessage('');
-    setScheduleState(nextSchedule);
+    setScheduleState(updater);
   }, []);
+  const waitForPendingSaves = useCallback(async () => undefined, []);
 
-  const waitForPendingSaves = useCallback(async () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-      await saveLatestSchedule();
-      return;
-    }
-    await saveQueueRef.current.catch(() => undefined);
-  }, [saveLatestSchedule]);
-
-  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleWithoutSave, waitForPendingSaves] as const;
+  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage, reload: () => reload(true) }, setScheduleWithoutSave, waitForPendingSaves] as const;
 }

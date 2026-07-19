@@ -17,6 +17,7 @@ type NotesViewProps = {
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
+  isSaving: boolean;
   onStoreFilterChange: (storeId: string) => void;
   onMemoStoreChange: (storeId: string) => void;
   onMemoDateChange: (date: string) => void;
@@ -28,7 +29,7 @@ type NotesViewProps = {
 };
 
 export function NotesView(props: NotesViewProps) {
-  const { notes, stores, filteredNotes, storeFilter, memoStoreId, memoDate, memoText, editingMemoKey, canCreate, canDelete, canUpdate } = props;
+  const { notes, stores, filteredNotes, storeFilter, memoStoreId, memoDate, memoText, editingMemoKey, canCreate, canDelete, canUpdate, isSaving } = props;
   const canEditForm = editingMemoKey ? canUpdate : canCreate;
   return (
     <>
@@ -48,7 +49,7 @@ export function NotesView(props: NotesViewProps) {
           {filteredNotes.map((note) => (
             <article className="memo-item" key={`${note.storeId}:${note.date}`}>
               <header><div><span>{getStoreName(note.storeId, stores)}</span><strong>{fullDateLabel(note.date)}</strong></div>
-                {canUpdate || canDelete ? <div className="memo-item-actions">{canUpdate ? <button type="button" onClick={() => props.onEdit(note)}>수정</button> : null}{canDelete ? <button className="danger" type="button" onClick={() => props.onDelete(note)}>삭제</button> : null}</div> : null}
+                {canUpdate || canDelete ? <div className="memo-item-actions">{canUpdate ? <button type="button" onClick={() => props.onEdit(note)} disabled={isSaving}>수정</button> : null}{canDelete ? <button className="danger" type="button" onClick={() => props.onDelete(note)} disabled={isSaving}>삭제</button> : null}</div> : null}
               </header>
               <p>{note.text}</p>
             </article>
@@ -61,7 +62,7 @@ export function NotesView(props: NotesViewProps) {
             <label>매장<StoreSelect stores={stores} value={memoStoreId} onChange={props.onMemoStoreChange} /></label>
             <label>날짜<input type="date" value={memoDate} onChange={(event) => props.onMemoDateChange(event.target.value)} required /></label>
             <label>특이사항<textarea value={memoText} onChange={(event) => props.onMemoTextChange(event.target.value)} placeholder="교육, 대타, 청소, 연장 등 전달할 내용을 입력하세요." rows={7} required /></label>
-            <div className="form-actions"><button type="button" onClick={props.onReset}>초기화</button><button className="primary" type="submit" disabled={!canEditForm}>{editingMemoKey ? '변경 저장' : '메모 등록'}</button></div>
+            <div className="form-actions"><button type="button" onClick={props.onReset} disabled={isSaving}>초기화</button><button className="primary" type="submit" disabled={!canEditForm || isSaving}>{isSaving ? '저장 중...' : editingMemoKey ? '변경 저장' : '메모 등록'}</button></div>
           </form>
         ) : null}
       </div>

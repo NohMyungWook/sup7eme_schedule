@@ -1,5 +1,4 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { employeeDropTemplateIds } from '../domain/data';
 import { createInitialDraft } from '../domain/drafts';
 import type {
   DraftShift,
@@ -9,7 +8,9 @@ import type {
   Shift,
   ShiftTemplate,
 } from '../domain/types';
-import { addDays, splitShiftTime, templateById } from '../utils/schedule';
+import { ApiRequestError } from '../services/apiClient';
+import { cancelShiftFromApi, runScheduleAction, saveShiftToApi } from '../services/shiftApi';
+import { splitShiftTime, templateById } from '../utils/schedule';
 
 type UseShiftManagementOptions = {
   canCreate: boolean;
@@ -23,6 +24,7 @@ type UseShiftManagementOptions = {
   storeId: string;
   templates: ShiftTemplate[];
   visibleShifts: Shift[];
+  setGenerationMessage: (message: string) => void;
 };
 
 export function useShiftManagement({
@@ -37,6 +39,7 @@ export function useShiftManagement({
   storeId,
   templates,
   visibleShifts,
+  setGenerationMessage,
 }: UseShiftManagementOptions) {
   const [draft, setDraft] = useState<DraftShift>(() => createInitialDraft(selectedDate));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,10 +49,8 @@ export function useShiftManagement({
   const [pendingEmployeeDrop, setPendingEmployeeDrop] =
     useState<PendingEmployeeDrop | null>(null);
   const [shiftTimeError, setShiftTimeError] = useState('');
-  const dragTemplates = employeeDropTemplateIds.flatMap((templateId) => {
-    const template = templates.find((item) => item.id === templateId);
-    return template ? [template] : [];
-  });
+  const [isShiftSaving, setIsShiftSaving] = useState(false);
+  const dragTemplates = templates.filter((template) => template.isActive !== false);
 
   useEffect(() => {
     if (!days.includes(selectedDate)) {
@@ -57,6 +58,32 @@ export function useShiftManagement({
       setDraft((current) => ({ ...current, date: days[0] }));
     }
   }, [days, selectedDate, setSelectedDate]);
+
+  useEffect(() => {
+    const fallbackEmployee = employees[0];
+    const fallbackTemplate = templates[0];
+    if (!fallbackEmployee && !fallbackTemplate) return;
+    setDraft((current) => {
+      const employeeId = employees.some((employee) => employee.id === current.employeeId)
+        ? current.employeeId
+        : fallbackEmployee?.id ?? '';
+      const hasCurrentTemplate = templates.some((template) => template.id === current.templateId);
+      const templateId = hasCurrentTemplate
+        ? current.templateId
+        : fallbackTemplate?.id ?? '';
+      const time = hasCurrentTemplate
+        ? current.time
+        : fallbackTemplate?.time ?? current.time;
+
+      if (
+        current.employeeId === employeeId
+        && current.templateId === templateId
+        && current.time === time
+      ) return current;
+
+      return { ...current, employeeId, templateId, time };
+    });
+  }, [employees, templates]);
 
   function selectTemplate(templateId: string) {
     const template = templateById(templateId, templates);
@@ -84,14 +111,18 @@ export function useShiftManagement({
     setDraft((current) => ({
       ...createInitialDraft(date),
       employeeId: employees[0]?.id ?? '',
-      templateId: current.templateId,
-      time: current.time,
+      templateId: templates.some((template) => template.id === current.templateId)
+        ? current.templateId
+        : templates[0]?.id ?? '',
+      time: templates.find((template) => template.id === current.templateId)?.time
+        ?? templates[0]?.time
+        ?? current.time,
     }));
   }
 
-  function submitShift(event: FormEvent<HTMLFormElement>) {
+  async function submitShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (editingId ? !canUpdate : !canCreate) return;
+    if (isShiftSaving || (editingId ? !canUpdate : !canCreate)) return;
 
     const { startTime, endTime } = splitShiftTime(draft.time);
     if (startTime === endTime) {
@@ -99,25 +130,23 @@ export function useShiftManagement({
       return;
     }
 
-    if (editingId) {
+    const existing = editingId ? visibleShifts.find((shift) => shift.id === editingId) : null;
+    const nextShift: Shift = { id: editingId ?? crypto.randomUUID(), storeId, ...draft, updatedAt: existing?.updatedAt };
+    setIsShiftSaving(true);
+    try {
+      const result = await saveShiftWithConflictConfirmation(nextShift, Boolean(editingId));
       setSchedule((current) => ({
         ...current,
-        shifts: current.shifts.map((shift) =>
-          shift.id === editingId ? { ...shift, ...draft, storeId } : shift,
-        ),
+        shifts: editingId
+          ? current.shifts.map((shift) => shift.id === editingId ? { ...shift, ...result.shift } : shift)
+          : [...current.shifts, result.shift],
       }));
-    } else {
-      setSchedule((current) => ({
-        ...current,
-        shifts: [
-          ...current.shifts,
-          {
-            id: crypto.randomUUID(),
-            storeId,
-            ...draft,
-          },
-        ],
-      }));
+      setGenerationMessage(editingId ? '근무 정보를 수정했습니다.' : '근무를 추가했습니다.');
+    } catch (error) {
+      setShiftTimeError(error instanceof Error ? error.message : '근무를 저장하지 못했습니다.');
+      return;
+    } finally {
+      setIsShiftSaving(false);
     }
 
     resetDraft(draft.date);
@@ -141,10 +170,9 @@ export function useShiftManagement({
     setShowShiftModal(true);
   }
 
-  function deleteShift() {
+  async function deleteShift() {
     if (!editingId || !canDelete) return;
-    removeShift(editingId);
-    setShowShiftModal(false);
+    if (await removeShift(editingId)) setShowShiftModal(false);
   }
 
   function closeShiftModal() {
@@ -154,26 +182,46 @@ export function useShiftManagement({
     resetDraft();
   }
 
-  function removeShift(shiftId: string) {
-    if (!canDelete) return;
-
-    setSchedule((current) => ({
-      ...current,
-      shifts: current.shifts.filter((shift) => shift.id !== shiftId),
-    }));
+  async function removeShift(shiftId: string): Promise<boolean> {
+    if (!canDelete || isShiftSaving) return false;
+    const shift = visibleShifts.find((item) => item.id === shiftId);
+    setIsShiftSaving(true);
+    try {
+      await cancelShiftFromApi(shiftId, shift?.updatedAt);
+      setSchedule((current) => ({ ...current, shifts: current.shifts.filter((item) => item.id !== shiftId) }));
+      setGenerationMessage('근무를 삭제했습니다. 과거 기록은 취소 상태로 보존됩니다.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '근무를 삭제하지 못했습니다.');
+      return false;
+    } finally {
+      setIsShiftSaving(false);
+    }
     if (editingId === shiftId) resetDraft();
     setDraggingShiftId(null);
+    return true;
   }
 
-  function moveShiftToDate(shiftId: string, date: string) {
-    if (!canUpdate) return;
-
+  async function moveShiftToDate(shiftId: string, date: string) {
+    if (!canUpdate || isShiftSaving) return;
+    const original = visibleShifts.find((shift) => shift.id === shiftId);
+    if (!original) return;
+    setIsShiftSaving(true);
     setSchedule((current) => ({
       ...current,
       shifts: current.shifts.map((shift) =>
         shift.id === shiftId ? { ...shift, date } : shift,
       ),
     }));
+    try {
+      const result = await saveShiftWithConflictConfirmation({ ...original, date }, true);
+      setSchedule((current) => ({ ...current, shifts: current.shifts.map((shift) => shift.id === shiftId ? { ...shift, ...result.shift } : shift) }));
+      setGenerationMessage('근무 날짜를 변경했습니다.');
+    } catch (error) {
+      setSchedule((current) => ({ ...current, shifts: current.shifts.map((shift) => shift.id === shiftId ? original : shift) }));
+      window.alert(error instanceof Error ? error.message : '근무를 이동하지 못했습니다.');
+    } finally {
+      setIsShiftSaving(false);
+    }
     if (editingId === shiftId) {
       setDraft((current) => ({ ...current, date }));
       setSelectedDate(date);
@@ -181,29 +229,21 @@ export function useShiftManagement({
     setDraggingShiftId(null);
   }
 
-  function copyPreviousWeek() {
+  async function copyPreviousWeek() {
     if (!canCreate) return;
-
-    const copied = visibleShifts
-      .filter((shift) => {
-        const previousDate = addDays(shift.date, 7);
-        return days.includes(previousDate);
-      })
-      .map((shift) => ({
-        ...shift,
-        id: crypto.randomUUID(),
-        date: addDays(shift.date, 7),
-      }));
-
-    setSchedule((current) => ({
-      ...current,
-      shifts: [
-        ...current.shifts.filter(
-          (shift) => !(shift.storeId === storeId && days.includes(shift.date)),
-        ),
-        ...copied,
-      ],
-    }));
+    try {
+      let result;
+      try {
+        result = await runScheduleAction('copy-previous-week', storeId, days[0]);
+      } catch (error) {
+        if (!(error instanceof ApiRequestError) || error.code !== 'TARGET_WEEK_NOT_EMPTY' || !window.confirm('대상 주에 근무가 있습니다. 기존 근무를 취소하고 지난주 스케줄로 덮어쓸까요?')) throw error;
+        result = await runScheduleAction('copy-previous-week', storeId, days[0], true);
+      }
+      setGenerationMessage(`${result.created}건을 복사했습니다.${result.skipped ? ` ${result.skipped}건은 충돌로 건너뛰었습니다.` : ''}`);
+      window.dispatchEvent(new CustomEvent('sup7eme:data-changed', { detail: { resources: ['schedule', 'dashboard'] } }));
+    } catch (error) {
+      setGenerationMessage(error instanceof Error ? error.message : '지난주 스케줄을 복사하지 못했습니다.');
+    }
   }
 
   function addDraggedEmployee(employeeId: string, date: string) {
@@ -212,8 +252,8 @@ export function useShiftManagement({
     setPendingEmployeeDrop({ employeeId, date });
   }
 
-  function selectDroppedEmployeeTemplate(templateId: string) {
-    if (!canCreate || !pendingEmployeeDrop) return;
+  async function selectDroppedEmployeeTemplate(templateId: string) {
+    if (!canCreate || !pendingEmployeeDrop || isShiftSaving) return;
 
     const selectedTemplate = templateById(templateId, templates);
     if (!templates.some((template) => template.id === selectedTemplate.id)) {
@@ -237,21 +277,30 @@ export function useShiftManagement({
       return;
     }
 
-    setSchedule((current) => ({
-      ...current,
-      shifts: [
-        ...current.shifts,
-        {
-          id: crypto.randomUUID(),
-          storeId,
-          date: pendingEmployeeDrop.date,
-          employeeId: pendingEmployeeDrop.employeeId,
-          templateId: selectedTemplate.id,
-          time: selectedTemplate.time,
-        },
-      ],
-    }));
-    setPendingEmployeeDrop(null);
+    const nextShift: Shift = { id: crypto.randomUUID(), storeId, date: pendingEmployeeDrop.date, employeeId: pendingEmployeeDrop.employeeId, templateId: selectedTemplate.id, time: selectedTemplate.time };
+    setIsShiftSaving(true);
+    try {
+      const result = await saveShiftWithConflictConfirmation(nextShift, false);
+      setSchedule((current) => ({ ...current, shifts: [...current.shifts, result.shift] }));
+      setPendingEmployeeDrop(null);
+      setGenerationMessage('근무를 추가했습니다.');
+    } catch (error) {
+      setShiftTimeError(error instanceof Error ? error.message : '근무를 추가하지 못했습니다.');
+      window.alert(error instanceof Error ? error.message : '근무를 추가하지 못했습니다.');
+    } finally {
+      setIsShiftSaving(false);
+    }
+  }
+
+  async function saveShiftWithConflictConfirmation(shift: Shift, isUpdate: boolean) {
+    try {
+      return await saveShiftToApi(shift, isUpdate);
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.code === 'PENDING_LEAVE_CONFLICT' && window.confirm(`${error.message}\n그래도 저장할까요?`)) {
+        return saveShiftToApi(shift, isUpdate, true);
+      }
+      throw error;
+    }
   }
 
   return {
@@ -279,5 +328,6 @@ export function useShiftManagement({
     copyPreviousWeek,
     addDraggedEmployee,
     selectDroppedEmployeeTemplate,
+    isShiftSaving,
   };
 }

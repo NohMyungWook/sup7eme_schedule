@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { filterNotesByStore } from '../domain/selectors';
 import type { DayNote, ScheduleState, Store } from '../domain/types';
+import { deleteNoteFromApi, saveNoteToApi } from '../services/noteApi';
 import { formatDate } from '../utils/schedule';
 
 type UseMemoManagementOptions = {
@@ -19,22 +20,33 @@ export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDe
   const [memoDate, setMemoDate] = useState(formatDate(new Date()));
   const [memoText, setMemoText] = useState('');
   const [editingMemoKey, setEditingMemoKey] = useState<string | null>(null);
+  const [isMemoSaving, setIsMemoSaving] = useState(false);
 
-  function saveMemo(event: FormEvent<HTMLFormElement>) {
+  async function saveMemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if ((editingMemoKey ? !canUpdate : !canCreate) || !memoText.trim()) return;
-    setSchedule((current) => ({
-      ...current,
-      notes: [
-        ...current.notes.filter((note) => {
-          const key = `${note.storeId}:${note.date}`;
-          const isEditingTarget = editingMemoKey && key === editingMemoKey;
-          const isNewTarget = note.storeId === memoStoreId && note.date === memoDate;
-          return !isEditingTarget && !isNewTarget;
-        }),
-        { storeId: memoStoreId, date: memoDate, text: memoText.trim() },
-      ],
-    }));
+    if (isMemoSaving || (editingMemoKey ? !canUpdate : !canCreate) || !memoText.trim()) return;
+    const nextNote = { storeId: memoStoreId, date: memoDate, text: memoText.trim() };
+    setIsMemoSaving(true);
+    try {
+      const saved = await saveNoteToApi(nextNote);
+      setSchedule((current) => ({
+        ...current,
+        notes: [
+          ...current.notes.filter((note) => {
+            const key = `${note.storeId}:${note.date}`;
+            const isEditingTarget = editingMemoKey && key === editingMemoKey;
+            const isNewTarget = note.storeId === memoStoreId && note.date === memoDate;
+            return !isEditingTarget && !isNewTarget;
+          }),
+          saved,
+        ],
+      }));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '메모를 저장하지 못했습니다.');
+      return;
+    } finally {
+      setIsMemoSaving(false);
+    }
     resetMemoForm();
   }
 
@@ -46,8 +58,17 @@ export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDe
     setEditingMemoKey(`${note.storeId}:${note.date}`);
   }
 
-  function deleteMemo(note: DayNote) {
-    if (!canDelete) return;
+  async function deleteMemo(note: DayNote) {
+    if (!canDelete || isMemoSaving) return;
+    setIsMemoSaving(true);
+    try {
+      await deleteNoteFromApi(note.storeId, note.date);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '메모를 삭제하지 못했습니다.');
+      return;
+    } finally {
+      setIsMemoSaving(false);
+    }
     setSchedule((current) => ({
       ...current,
       notes: current.notes.filter(
@@ -67,6 +88,6 @@ export function useMemoManagement({ notes, stores, storeFilter, canCreate, canDe
   return {
     filteredNotes, memoStoreId, setMemoStoreId, memoDate, setMemoDate,
     memoText, setMemoText, editingMemoKey, saveMemo, editMemo, deleteMemo,
-    resetMemoForm,
+    resetMemoForm, isMemoSaving,
   };
 }

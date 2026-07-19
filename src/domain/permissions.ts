@@ -11,6 +11,8 @@ export const defaultManagerPermissions: AccountPermissions = {
   employees: { view: true, create: true, update: true, delete: true },
   notes: { view: true, create: true, update: true, delete: true },
   settings: { view: true, create: true, update: true, delete: true },
+  leaveRequests: { view: true, create: true, update: true, delete: false },
+  accounts: { view: true, create: true, update: true, delete: false },
 };
 
 export const defaultViewerPermissions: AccountPermissions = {
@@ -19,10 +21,14 @@ export const defaultViewerPermissions: AccountPermissions = {
   employees: { view: false, create: false, update: false, delete: false },
   notes: { view: false, create: false, update: false, delete: false },
   settings: { view: false, create: false, update: false, delete: false },
+  leaveRequests: { view: true, create: true, update: true, delete: false },
+  accounts: { view: false, create: false, update: false, delete: false },
 };
 
 export function defaultPermissionsForRole(role: Role | null): AccountPermissions {
-  return role === 'manager' ? clonePermissions(defaultManagerPermissions) : clonePermissions(defaultViewerPermissions);
+  return role === 'manager' || role === 'super_admin'
+    ? clonePermissions(defaultManagerPermissions)
+    : clonePermissions(defaultViewerPermissions);
 }
 
 export function normalizeAccountPermissions(
@@ -34,8 +40,11 @@ export function normalizeAccountPermissions(
 
   Object.keys(base).forEach((menu) => {
     Object.keys(base[menu as AccountPermissionMenu]).forEach((action) => {
-      base[menu as AccountPermissionMenu][action as AccountPermissionAction] =
-        Boolean(permissions[menu as AccountPermissionMenu]?.[action as AccountPermissionAction]);
+      const menuPermissions = permissions[menu as AccountPermissionMenu];
+      if (menuPermissions && Object.hasOwn(menuPermissions, action)) {
+        base[menu as AccountPermissionMenu][action as AccountPermissionAction] =
+          Boolean(menuPermissions[action as AccountPermissionAction]);
+      }
     });
   });
 

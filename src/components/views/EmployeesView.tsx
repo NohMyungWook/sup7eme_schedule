@@ -8,6 +8,7 @@ import type {
   Store,
 } from '../../domain/types';
 import { StoreFilter } from '../common/StoreFilter';
+import { Dropdown } from '../common/Dropdown';
 import { EmployeeBaseShiftSection } from './EmployeeBaseShiftSection';
 import { EmployeeCardList } from './EmployeeCardList';
 import { profileColorOptions } from './employeeViewModel';
@@ -20,6 +21,9 @@ type EmployeesViewProps = {
   selectedBaseShifts: BaseShiftRule[];
   storeId: string;
   storeFilter: string;
+  searchKeyword: string;
+  statusFilter: 'all' | 'active' | 'inactive';
+  isSaving: boolean;
   showForm: boolean;
   employeeDraft: EmployeeDraft;
   selectedEmployeeDraft: EmployeeDraft;
@@ -30,6 +34,8 @@ type EmployeesViewProps = {
   setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>>;
   setBaseShiftDraft: Dispatch<SetStateAction<BaseShiftDraft>>;
   onStoreFilterChange: (storeId: string) => void;
+  onSearchChange: (value: string) => void;
+  onStatusFilterChange: (value: 'all' | 'active' | 'inactive') => void;
   onStoreChange: (storeId: string) => void;
   onAddOpen: () => void;
   onFormClose: () => void;
@@ -42,7 +48,7 @@ type EmployeesViewProps = {
   onSelectedStoreToggle: (storeId: string) => void;
   onBaseShiftWeekdayToggle: (weekday: number) => void;
   onTemplateSelect: (templateId: string) => void;
-  onBaseShiftAdd: (event: FormEvent<HTMLFormElement>) => void;
+  onBaseShiftAdd: (event: FormEvent<HTMLFormElement>) => Promise<boolean>;
   onBaseShiftDelete: (ruleIds: string | string[]) => void;
   onBaseShiftEdit: (ruleIds: string[]) => void;
   onBaseShiftEditCancel: () => void;
@@ -120,6 +126,10 @@ export function EmployeesView(props: EmployeesViewProps) {
         }
         onChange={props.onStoreFilterChange}
       />
+      <div className="employee-list-filters">
+        <label><span>직원 검색</span><input value={props.searchKeyword} onChange={(event) => props.onSearchChange(event.target.value)} placeholder="이름 또는 직원 메모 검색" /></label>
+        <Dropdown value={props.statusFilter} onChange={(value) => props.onStatusFilterChange(value as 'all' | 'active' | 'inactive')} options={[{ value: 'all', label: '전체 재직 상태' }, { value: 'active', label: '재직 중' }, { value: 'inactive', label: '비활성 · 퇴사' }]} ariaLabel="직원 재직 상태" />
+      </div>
       <div className="employee-management-layout">
         <EmployeeCardList
           filteredEmployees={isReorderMode ? orderedEmployees : props.filteredEmployees}
@@ -173,7 +183,7 @@ export function EmployeesView(props: EmployeesViewProps) {
               onStoreChange={props.onStoreChange}
               onTemplateSelect={props.onTemplateSelect}
             />
-            {props.isManager ? <div className="profile-edit-actions"><button className="danger" type="button" onClick={() => isAddingEmployee ? props.onFormClose() : selectedEmployee && props.onEmployeeDelete(selectedEmployee)}>{isAddingEmployee ? '취소' : '직원 삭제'}</button><button className="primary" type="submit" form="selected-employee-form" disabled={!activeEmployeeDraft.name.trim() || !activeEmployeeDraft.storeIds.length}>{isAddingEmployee ? '직원 추가' : '저장'}</button></div> : null}
+            {props.isManager ? <div className="profile-edit-actions"><button className={isAddingEmployee || selectedEmployee?.isActive !== false ? 'danger' : undefined} type="button" onClick={() => isAddingEmployee ? props.onFormClose() : selectedEmployee && props.onEmployeeDelete(selectedEmployee)} disabled={props.isSaving}>{isAddingEmployee ? '취소' : selectedEmployee?.isActive === false || selectedEmployee?.employmentStatus === 'terminated' ? '직원 재활성화' : '퇴사 처리'}</button><button className="primary" type="submit" form="selected-employee-form" disabled={props.isSaving || !activeEmployeeDraft.name.trim() || !activeEmployeeDraft.storeIds.length}>{props.isSaving ? '저장 중...' : isAddingEmployee ? '직원 추가' : '저장'}</button></div> : null}
           </aside>
         ) : null}
       </div>

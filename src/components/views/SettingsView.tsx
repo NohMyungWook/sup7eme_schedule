@@ -4,6 +4,8 @@ import { AccountManagementSettings } from '../settings/AccountManagementSettings
 import { SettingsOverview } from '../settings/SettingsOverview';
 import { StoreManagementSettings } from '../settings/StoreManagementSettings';
 import { TimeTemplateSettings } from '../settings/TimeTemplateSettings';
+import { LeaveRequestSettings } from '../settings/LeaveRequestSettings';
+import { ScheduleRuleSettings } from '../settings/ScheduleRuleSettings';
 
 type SettingsViewProps = {
   stores: Store[];
@@ -12,9 +14,16 @@ type SettingsViewProps = {
   templates: ShiftTemplate[];
   draft: TemplateDraft;
   editingTemplateId: string | null;
+  isTemplateSaving: boolean;
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
+  canManageManagers: boolean;
+  canViewAccounts: boolean;
+  canCreateAccounts: boolean;
+  canUpdateAccounts: boolean;
+  canViewLeaveRequests: boolean;
+  canUpdateLeaveRequests: boolean;
   activeSettingsPanel: SettingsPanel;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
   setActiveSettingsPanel: (panel: SettingsPanel) => void;
@@ -23,6 +32,7 @@ type SettingsViewProps = {
   onReset: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStoresChange: (stores: Store[]) => Promise<void> | void;
+  onOpenSchedule: (date: string, storeId: string) => void;
 };
 
 export function SettingsView({
@@ -32,25 +42,39 @@ export function SettingsView({
   templates,
   draft,
   editingTemplateId,
+  isTemplateSaving,
   canCreate,
   canDelete,
   canUpdate,
+  canManageManagers,
+  canViewAccounts,
+  canCreateAccounts,
+  canUpdateAccounts,
+  canViewLeaveRequests,
+  canUpdateLeaveRequests,
   activeSettingsPanel,
   setDraft,
   setActiveSettingsPanel,
   onEdit,
+  onDelete,
   onReset,
   onSubmit,
   onStoresChange,
+  onOpenSchedule,
 }: SettingsViewProps) {
+  const activeStores = stores.filter((store) => store.isActive);
   if (activeSettingsPanel === 'overview') {
     return (
       <SettingsOverview
-        stores={stores}
+        stores={activeStores}
         templates={templates}
         onTemplateSettingsOpen={() => setActiveSettingsPanel('templates')}
         onStoreSettingsOpen={() => setActiveSettingsPanel('stores')}
         onAccountSettingsOpen={() => setActiveSettingsPanel('accounts')}
+        onLeaveRequestSettingsOpen={() => setActiveSettingsPanel('leave-requests')}
+        onScheduleRuleSettingsOpen={() => setActiveSettingsPanel('rules')}
+        canViewAccounts={canViewAccounts}
+        canViewLeaveRequests={canViewLeaveRequests}
       />
     );
   }
@@ -71,14 +95,26 @@ export function SettingsView({
   }
 
   if (activeSettingsPanel === 'accounts') {
+    if (!canViewAccounts) return <SettingsAccessDenied onBack={() => setActiveSettingsPanel('overview')} />;
     return (
       <AccountManagementSettings
-        canCreate={canCreate}
-        canUpdate={canUpdate}
-        stores={stores}
+        canCreate={canCreateAccounts}
+        canUpdate={canUpdateAccounts}
+        stores={activeStores}
+        employees={employees}
+        canManageManagers={canManageManagers}
         onBack={() => setActiveSettingsPanel('overview')}
       />
     );
+  }
+
+  if (activeSettingsPanel === 'leave-requests') {
+    if (!canViewLeaveRequests) return <SettingsAccessDenied onBack={() => setActiveSettingsPanel('overview')} />;
+    return <LeaveRequestSettings stores={activeStores} employees={employees} canUpdate={canUpdateLeaveRequests} onBack={() => setActiveSettingsPanel('overview')} onOpenSchedule={onOpenSchedule} />;
+  }
+
+  if (activeSettingsPanel === 'rules') {
+    return <ScheduleRuleSettings stores={activeStores} templates={templates} canCreate={canCreate} canUpdate={canUpdate} canDelete={canDelete} onBack={() => setActiveSettingsPanel('overview')} />;
   }
 
   return (
@@ -86,14 +122,20 @@ export function SettingsView({
       templates={templates}
       draft={draft}
       editingTemplateId={editingTemplateId}
+      isSaving={isTemplateSaving}
       canCreate={canCreate}
       canDelete={canDelete}
       canUpdate={canUpdate}
       setDraft={setDraft}
       onBack={() => setActiveSettingsPanel('overview')}
       onEdit={onEdit}
+      onDelete={onDelete}
       onReset={onReset}
       onSubmit={onSubmit}
     />
   );
+}
+
+function SettingsAccessDenied({ onBack }: { onBack: () => void }) {
+  return <><header className="settings-detail-header"><button className="settings-back-button" type="button" onClick={onBack}>← 설정으로 돌아가기</button><div><h1>접근 권한이 없습니다.</h1><p>현재 계정에는 이 설정을 조회할 권한이 없습니다.</p></div></header></>;
 }

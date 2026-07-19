@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { BaseShiftRule, Employee, Store } from '../../domain/types';
 import { colorClassName, colorInputValue, customColorStyle } from '../../utils/color';
+import { Dropdown } from '../common/Dropdown';
 import { SettingsIcon } from './SettingsIcon';
 
 type StoreDraft = {
@@ -38,6 +39,7 @@ export function StoreManagementSettings({
   const [selectedStoreId, setSelectedStoreId] = useState(stores[0]?.id ?? '');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [draggingStoreId, setDraggingStoreId] = useState<string | null>(null);
   const [orderedStores, setOrderedStores] = useState<Store[]>(stores);
@@ -48,6 +50,8 @@ export function StoreManagementSettings({
   const [draft, setDraft] = useState<StoreDraft>(() => createStoreDraft(stores[0]));
   const visibleStores = isReorderMode ? orderedStores : stores;
   const filteredStores = (isReorderMode ? visibleStores : visibleStores.filter((store) => {
+    if (statusFilter === 'active' && !store.isActive) return false;
+    if (statusFilter === 'inactive' && store.isActive) return false;
     const keyword = searchKeyword.trim().toLowerCase();
     if (!keyword) return true;
 
@@ -85,7 +89,7 @@ export function StoreManagementSettings({
 
     return {
       employees: targetStoreId
-        ? employees.filter((employee) => employee.storeIds.includes(targetStoreId)).length
+        ? employees.filter((employee) => employee.isActive !== false && employee.employmentStatus === 'active' && employee.storeIds.includes(targetStoreId)).length
         : 0,
       baseShifts: targetStoreId
         ? baseShifts.filter((rule) => rule.storeId === targetStoreId).length
@@ -150,24 +154,24 @@ export function StoreManagementSettings({
 
   async function deleteStore() {
     if (!activeStore || !canDelete) return;
-    if (stores.length <= 1) {
+    if (stores.filter((store) => store.isActive).length <= 1 && activeStore.isActive) {
       window.alert('최소 1개의 근무지는 필요합니다.');
       return;
     }
     const employeeCount = employees.filter((employee) => employee.storeIds.includes(activeStore.id)).length;
     const message = employeeCount
-      ? `${activeStore.name} 근무지를 삭제할까요? 연결된 직원 ${employeeCount}명의 근무 가능 매장과 해당 근무지 스케줄도 함께 정리됩니다.`
-      : `${activeStore.name} 근무지를 삭제할까요? 해당 근무지 스케줄도 함께 정리됩니다.`;
+      ? `${activeStore.name} 운영을 중지할까요? 연결된 직원 ${employeeCount}명과 과거 스케줄 기록은 유지되며 신규 선택 목록에서 제외됩니다.`
+      : `${activeStore.name} 운영을 중지할까요? 과거 스케줄 기록은 유지됩니다.`;
     if (!window.confirm(message)) return;
 
-    const nextStores = stores.filter((store) => store.id !== activeStore.id);
+    const nextStores = stores.map((store) => store.id === activeStore.id ? { ...store, isActive: false } : store);
     setIsSaving(true);
     setErrorMessage('');
     try {
       await onStoresChange(nextStores);
-      setSelectedStoreId(nextStores[0]?.id ?? '');
-      setIsAddingStore(!nextStores.length);
-      setDraft(createStoreDraft(nextStores[0]));
+      setSelectedStoreId(activeStore.id);
+      setIsAddingStore(false);
+      setDraft(createStoreDraft({ ...activeStore, isActive: false }));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '근무지를 삭제하지 못했습니다.');
     } finally {
@@ -234,6 +238,7 @@ export function StoreManagementSettings({
         <section className="store-settings-main">
           <div className="store-settings-toolbar">
             <label><span><SettingsIcon name="search" /></span><input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} disabled={isReorderMode} placeholder={isReorderMode ? '위치 변경 중에는 검색을 사용할 수 없습니다.' : '근무지 검색 (예: 사당점, 강남점)'} /></label>
+            <div className="store-status-filter"><Dropdown value={statusFilter} onChange={(value) => setStatusFilter(value as typeof statusFilter)} ariaLabel="근무지 운영 상태" options={[{ value: 'all', label: '전체 상태' }, { value: 'active', label: '운영중' }, { value: 'inactive', label: '비활성' }]} /></div>
             <button className={`store-reorder-toggle ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={() => void toggleReorderMode()} aria-pressed={isReorderMode} disabled={isSaving}>
               <span aria-hidden="true">↕</span>{isSaving ? '저장 중...' : isReorderMode ? '완료' : '위치 변경'}
             </button>
@@ -243,7 +248,7 @@ export function StoreManagementSettings({
           {errorMessage ? <p className="store-save-error">{errorMessage}</p> : null}
           <div className="store-settings-list">
             {filteredStores.map((store) => {
-              const employeeCount = employees.filter((employee) => employee.storeIds.includes(store.id)).length;
+              const employeeCount = employees.filter((employee) => employee.isActive !== false && employee.employmentStatus === 'active' && employee.storeIds.includes(store.id)).length;
               const storeIndex = orderedStores.findIndex((item) => item.id === store.id);
 
               return (
@@ -297,7 +302,7 @@ export function StoreManagementSettings({
             <div className="store-color-field"><span>표시 색상</span><div>{storeColors.map((color) => <button type="button" className={`${color} ${draft.color === color ? 'is-selected' : ''}`} key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} 색상`} />)}<label className={`color-rainbow-picker ${storeColors.includes(draft.color) ? '' : 'is-selected'}`} aria-label="직접 RGB 색상 선택"><input type="color" value={colorInputValue(draft.color)} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label></div></div>
             <label>메모<textarea value={draft.memo} maxLength={200} onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))} placeholder="매장 관련 메모를 입력해주세요." rows={5} /><small>{draft.memo.length} / 200</small></label>
             <div className={`store-editor-actions ${!isAddingStore && activeStore ? 'has-danger' : ''}`}>
-              {!isAddingStore && activeStore && canDelete ? <button className="danger" type="button" onClick={() => void deleteStore()} disabled={isSaving}>근무지 삭제</button> : null}
+              {!isAddingStore && activeStore?.isActive && canDelete ? <button className="danger" type="button" onClick={() => void deleteStore()} disabled={isSaving}>운영 중지</button> : null}
               <button type="button" onClick={resetDraft} disabled={isSaving}>취소</button>
               <button className="primary" type="submit" disabled={isSaving || (activeStore ? !canUpdate : !canCreate)}>{isSaving ? '저장 중...' : '변경 저장'}</button>
             </div>

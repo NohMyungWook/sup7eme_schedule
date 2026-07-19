@@ -13,16 +13,6 @@ export async function fetchScheduleState(): Promise<ScheduleState> {
   return normalizeScheduleState(payload.state);
 }
 
-export async function saveScheduleStateToApi(state: ScheduleState) {
-  const payload = await apiRequest<SchedulePayload>('/api/schedule', {
-    method: 'PUT',
-    body: { state },
-    errorMessage: '스케줄 정보를 저장하지 못했습니다.',
-  });
-
-  return normalizeScheduleState(payload.state);
-}
-
 function normalizeScheduleState(state: Partial<ScheduleState> | undefined): ScheduleState {
   const stores = Array.isArray(state?.stores) ? state.stores : [];
 

@@ -3,9 +3,10 @@ import type {
   AccountPermissionAction,
   AccountPermissionMenu,
   AppAccount,
+  Employee,
   Store,
 } from '../../domain/types';
-import { fetchAccounts, saveAccount } from '../../services/accountApi';
+import { fetchAccounts, resetAccountPassword, saveAccount } from '../../services/accountApi';
 import {
   createAccountDraft,
   getStoreSummary,
@@ -16,18 +17,25 @@ type UseAccountManagementOptions = {
   canCreate: boolean;
   canUpdate: boolean;
   stores: Store[];
+  employees: Employee[];
 };
 
-export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccountManagementOptions) {
+export function useAccountManagement({ canCreate, canUpdate, stores, employees }: UseAccountManagementOptions) {
   const [accounts, setAccounts] = useState<AppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [draft, setDraft] = useState(() => createAccountDraft());
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [activeTab, setActiveTab] = useState<'accounts' | 'groups'>('accounts');
+  const [activeTab, setActiveTab] = useState<'all' | 'managers' | 'employees' | 'active' | 'inactive'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [initialPassword, setInitialPassword] = useState('');
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
   const filteredAccounts = accounts.filter((account) => {
+    if (activeTab === 'managers' && account.role === 'employee') return false;
+    if (activeTab === 'employees' && account.role !== 'employee') return false;
+    if (activeTab === 'active' && account.status !== 'active') return false;
+    if (activeTab === 'inactive' && account.status !== 'inactive') return false;
     const keyword = searchKeyword.trim().toLowerCase();
     if (!keyword) return true;
     return [
@@ -39,7 +47,8 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
   });
   const stats = useMemo(() => ({
     active: accounts.filter((account) => account.status === 'active').length,
-    managers: accounts.filter((account) => account.role === 'manager').length,
+    managers: accounts.filter((account) => account.role === 'manager' || account.role === 'super_admin').length,
+    employees: accounts.filter((account) => account.role === 'employee').length,
   }), [accounts]);
   const allStoresSelected =
     stores.length > 0 && stores.every((store) => draft.storeIds.includes(store.id));
@@ -78,6 +87,7 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     setSelectedAccountId(account.id);
     setDraft(createAccountDraft(account));
     setMessage('');
+    setInitialPassword('');
   }
 
   function openNewAccount() {
@@ -85,6 +95,7 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     setSelectedAccountId('');
     setDraft(createAccountDraft(undefined, stores));
     setMessage('');
+    setInitialPassword('');
   }
 
   async function submitAccount(event: FormEvent<HTMLFormElement>) {
@@ -93,7 +104,8 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     if (draft.id ? !canUpdate : !canCreate) return;
 
     try {
-      const nextAccounts = await saveAccount(draft);
+      setIsSaving(true);
+      const { accounts: nextAccounts, initialPassword: password } = await saveAccount(draft);
       setAccounts(nextAccounts);
       const nextSelected = nextAccounts.find((account) =>
         draft.id ? account.id === draft.id : account.username === draft.username,
@@ -103,8 +115,28 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
         setDraft(createAccountDraft(nextSelected));
       }
       setMessage('변경 내용을 저장했습니다.');
+      setInitialPassword(password ?? '');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function resetPassword() {
+    if (!canUpdate || !draft.id || !window.confirm('비밀번호를 초기화할까요? 새 임시 비밀번호는 한 번만 표시됩니다.')) return;
+    setMessage('');
+    setInitialPassword('');
+    setIsSaving(true);
+    try {
+      const result = await resetAccountPassword(draft.id);
+      setAccounts(result.accounts);
+      setInitialPassword(result.initialPassword ?? '');
+      setMessage('비밀번호를 초기화했습니다.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '비밀번호를 초기화하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -157,6 +189,8 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     draft,
     filteredAccounts,
     isLoading,
+    isSaving,
+    initialPassword,
     message,
     searchKeyword,
     selectedAccountId,
@@ -166,10 +200,12 @@ export function useAccountManagement({ canCreate, canUpdate, stores }: UseAccoun
     stats,
     openNewAccount,
     resetDraft,
+    resetPassword,
     selectAccount,
     submitAccount,
     toggleAllStores,
     toggleStore,
     updatePermission,
+    employees,
   };
 }
