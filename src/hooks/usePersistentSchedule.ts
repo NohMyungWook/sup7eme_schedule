@@ -90,6 +90,7 @@ export function usePersistentSchedule(role: Role | null) {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
       void saveLatestSchedule();
     }, SAVE_DEBOUNCE_MS);
 
@@ -117,34 +118,15 @@ export function usePersistentSchedule(role: Role | null) {
     setScheduleState(nextSchedule);
   }, []);
 
-  const setScheduleAndSave = useCallback(async (updater: SetStateAction<ScheduleState>) => {
-    const previousSchedule = latestScheduleRef.current;
-    const nextSchedule = typeof updater === 'function'
-      ? updater(previousSchedule)
-      : updater;
-
+  const waitForPendingSaves = useCallback(async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
+      await saveLatestSchedule();
+      return;
     }
-    skipNextSaveRef.current = true;
-    latestScheduleRef.current = nextSchedule;
-    setErrorMessage('');
-    setScheduleState(nextSchedule);
+    await saveQueueRef.current.catch(() => undefined);
+  }, [saveLatestSchedule]);
 
-    try {
-      await persistSchedule(nextSchedule);
-    } catch (error) {
-      if (latestScheduleRef.current === nextSchedule) {
-        latestScheduleRef.current = previousSchedule;
-        skipNextSaveRef.current = true;
-        setScheduleState(previousSchedule);
-      }
-      const message = error instanceof Error ? error.message : '스케줄 정보를 저장하지 못했습니다.';
-      setErrorMessage(message);
-      throw error;
-    }
-  }, [persistSchedule]);
-
-  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleAndSave, setScheduleWithoutSave] as const;
+  return [schedule, setSchedule, { isLoading, hasLoaded, errorMessage }, setScheduleWithoutSave, waitForPendingSaves] as const;
 }

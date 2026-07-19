@@ -7,6 +7,7 @@ import type {
 } from "../domain/types";
 import { getStoreShifts } from '../domain/selectors';
 import { saveEmployeeOrder } from '../services/employeeApi';
+import { deleteStoreFromApi, saveStoresToApi } from '../services/storeApi';
 import { useAuth } from './useAuth';
 import { useEmployeeManagement } from './useEmployeeManagement';
 import { useMemoManagement } from './useMemoManagement';
@@ -61,7 +62,7 @@ export function useScheduleController() {
       setPendingEmployeeDrop(null);
     },
   });
-  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleAndSave, setScheduleWithoutSave] =
+  const [{ stores, employees, shifts, notes, templates }, setSchedule, scheduleStatus, setScheduleWithoutSave, waitForPendingSaves] =
     usePersistentSchedule(role);
   const configuredStores = stores;
   const [activeView, setActiveView] = useState<ActiveView>(loadActiveView);
@@ -345,14 +346,24 @@ export function useScheduleController() {
     setGenerationMessage(`${generated.length}건의 기본 근무를 생성했습니다.`);
   }
 
-  function saveStores(nextStores: Store[]) {
+  async function saveStores(nextStores: Store[]) {
     const currentIds = new Set(configuredStores.map((store) => store.id));
     const nextIds = new Set(nextStores.map((store) => store.id));
     const isCreating = nextStores.some((store) => !currentIds.has(store.id));
     const isDeleting = configuredStores.some((store) => !nextIds.has(store.id));
     if ((isCreating && !canCreateSettings) || (isDeleting && !canDeleteSettings)) return;
     if (!isCreating && !isDeleting && !canUpdateSettings) return;
-    return setScheduleAndSave((current) => ({
+
+    await waitForPendingSaves();
+    if (isDeleting) {
+      const deletedStore = configuredStores.find((store) => !nextIds.has(store.id));
+      if (!deletedStore) return;
+      await deleteStoreFromApi(deletedStore.id);
+    } else {
+      await saveStoresToApi(nextStores);
+    }
+
+    setScheduleWithoutSave((current) => ({
       ...current,
       stores: nextStores,
       employees: current.employees.map((employee) => ({
