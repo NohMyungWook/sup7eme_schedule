@@ -6,7 +6,7 @@ import type {
   AppAccount,
   Store,
 } from '../../domain/types';
-import { clonePermissions, defaultManagerPermissions } from '../../domain/permissions';
+import { clonePermissions, defaultViewerPermissions } from '../../domain/permissions';
 
 export type AccountDraft = AppAccount & {
   password?: string;
@@ -22,6 +22,8 @@ export const accountMenus: Array<{
   { id: 'employees', label: '직원', icon: 'users' },
   { id: 'notes', label: '메모', icon: 'bell' },
   { id: 'settings', label: '설정', icon: 'shield' },
+  { id: 'leaveRequests', label: '휴무 신청', icon: 'calendar' },
+  { id: 'accounts', label: '계정', icon: 'users' },
 ];
 
 export const accountActions: Array<{ id: AccountPermissionAction; label: string }> = [
@@ -32,8 +34,9 @@ export const accountActions: Array<{ id: AccountPermissionAction; label: string 
 ];
 
 export const roleLabels: Record<AccountRole, string> = {
+  super_admin: '최고 관리자',
   manager: '관리자',
-  viewer: '조회 전용',
+  employee: '일반 직원',
 };
 
 export const statusLabels: Record<AccountStatus, string> = {
@@ -55,11 +58,13 @@ export function createAccountDraft(
       id: '',
       username: '',
       displayName: '',
-      role: 'manager',
+      role: 'employee',
       status: 'active',
+      employeeId: null,
       storeIds: stores.length ? [] : [],
-      permissions: clonePermissions(defaultManagerPermissions),
+      permissions: clonePermissions(defaultViewerPermissions),
       lastSignedInAt: null,
+      mustChangePassword: true,
       password: '',
     };
 }

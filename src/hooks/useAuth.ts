@@ -1,16 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { defaultPermissionsForRole, normalizeAccountPermissions } from '../domain/permissions';
-import type { AccountPermissions, Role } from '../domain/types';
+import type { AccountPermissions, AuthUser, Role } from '../domain/types';
 import { AUTH_EXPIRED_EVENT } from '../services/apiClient';
-import { loginToApi, logoutFromApi } from '../services/authApi';
-
-const SESSION_KEY = 'sup7eme-session';
-
-type StoredSession = {
-  role: Role;
-  displayName: string;
-  permissions: AccountPermissions;
-};
+import { fetchCurrentUser, loginToApi, logoutFromApi } from '../services/authApi';
 
 type UseAuthOptions = {
   onLogin: () => void;
@@ -19,6 +11,7 @@ type UseAuthOptions = {
 
 export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   const [role, setRole] = useState<Role | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [permissions, setPermissions] = useState<AccountPermissions>(() => defaultPermissionsForRole(null));
   const [loginId, setLoginId] = useState('');
@@ -27,7 +20,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const resetAuthState = useCallback((message = '') => {
-    clearSession();
+    setUser(null);
     setRole(null);
     setDisplayName('');
     setPermissions(defaultPermissionsForRole(null));
@@ -38,11 +31,23 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
   }, [onLogout]);
 
   useEffect(() => {
-    const session = loadSession();
-    setRole(session?.role ?? null);
-    setDisplayName(session?.displayName ?? '');
-    setPermissions(session?.permissions ?? defaultPermissionsForRole(session?.role ?? null));
-    setIsAuthLoading(false);
+    let mounted = true;
+    fetchCurrentUser()
+      .then((payload) => {
+        if (!mounted || !payload.user) return;
+        applyUser(payload.user);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setUser(null);
+        setRole(null);
+        setDisplayName('');
+        setPermissions(defaultPermissionsForRole(null));
+      })
+      .finally(() => {
+        if (mounted) setIsAuthLoading(false);
+      });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -72,18 +77,23 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     }
 
     const nextRole = payload.user.role;
-    if (nextRole !== 'manager' && nextRole !== 'viewer') {
+    if (!['super_admin', 'manager', 'employee'].includes(nextRole)) {
       setLoginError('앱 권한이 올바르지 않습니다.');
       return;
     }
 
-    const nextSession = {
+    const nextSession: AuthUser = {
+      id: payload.user.id,
+      username: payload.user.username,
       role: nextRole,
       displayName: payload.user.displayName || payload.user.username,
+      employeeId: payload.user.employeeId ?? null,
+      storeIds: payload.user.storeIds ?? [],
+      mustChangePassword: Boolean(payload.user.mustChangePassword),
       permissions: normalizeAccountPermissions(payload.user.permissions, nextRole),
     };
 
-    saveSession(nextSession);
+    setUser(nextSession);
     setRole(nextSession.role);
     setDisplayName(nextSession.displayName);
     setPermissions(nextSession.permissions);
@@ -96,7 +106,12 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     resetAuthState();
   }
 
+  function markPasswordChanged() {
+    setUser((current) => current ? { ...current, mustChangePassword: false } : current);
+  }
+
   return {
+    user,
     role,
     displayName,
     permissions,
@@ -109,29 +124,24 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     isAuthLoading,
     login,
     logout,
+    markPasswordChanged,
   };
-}
 
-function loadSession(): StoredSession | null {
-  try {
-    const saved = sessionStorage.getItem(SESSION_KEY);
-    if (!saved) return null;
-
-    const parsed = JSON.parse(saved) as StoredSession;
-    if (parsed.role !== 'manager' && parsed.role !== 'viewer') return null;
-    return {
-      ...parsed,
-      permissions: normalizeAccountPermissions(parsed.permissions, parsed.role),
+  function applyUser(payloadUser: NonNullable<Awaited<ReturnType<typeof fetchCurrentUser>>['user']>) {
+    const nextRole = payloadUser.role;
+    const nextUser: AuthUser = {
+      id: payloadUser.id,
+      username: payloadUser.username,
+      displayName: payloadUser.displayName || payloadUser.username,
+      role: nextRole,
+      employeeId: payloadUser.employeeId ?? null,
+      storeIds: payloadUser.storeIds ?? [],
+      mustChangePassword: Boolean(payloadUser.mustChangePassword),
+      permissions: normalizeAccountPermissions(payloadUser.permissions, nextRole),
     };
-  } catch {
-    return null;
+    setUser(nextUser);
+    setRole(nextUser.role);
+    setDisplayName(nextUser.displayName);
+    setPermissions(nextUser.permissions);
   }
-}
-
-function saveSession(session: StoredSession) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-}
-
-function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY);
 }
