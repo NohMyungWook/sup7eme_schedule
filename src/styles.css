@@ -6039,8 +6039,23 @@ textarea:focus {
 .leave-admin-list,
 .leave-admin-detail { border: 1px solid #e2e0e8; border-radius: 16px; background: #fff; }
 .leave-admin-filters { display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)) repeat(2, minmax(130px, .8fr)); gap: 8px; padding: 14px; border-bottom: 1px solid #eceaf0; }
+.leave-admin-filters > .custom-dropdown { min-width: 0; }
+.leave-admin-filters > .custom-dropdown .custom-dropdown__trigger { min-height: 38px; align-items: center; line-height: 1; }
 .leave-admin-filters > label { display: grid; gap: 3px; color: #777281; font-size: 10px; }
 .leave-admin-filters input { width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid #ddd9e6; border-radius: 9px; }
+.leave-date-filter { position: relative; grid-column: span 2; min-width: 0; }
+.leave-date-filter__trigger { display: flex; width: 100%; min-height: 38px; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #ddd8e7; border-radius: 9px; background: #fff; color: #3e3849; cursor: pointer; font: inherit; line-height: 1; text-align: left; }
+.leave-date-filter__trigger:hover, .leave-date-filter__trigger[aria-expanded='true'] { border-color: #a99ad3; }
+.leave-date-filter__trigger > span { display: flex; min-width: 0; flex: 1; align-items: center; gap: 6px; }
+.leave-date-filter__trigger small { flex: none; color: #777281; font-size: 10px; line-height: 1; }
+.leave-date-filter__trigger strong { overflow: hidden; color: #454052; font-size: 11px; font-weight: 600; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.leave-date-filter__trigger i { flex: none; color: #aaa2b6; font-size: 12px; font-style: normal; line-height: 1; }
+.leave-date-filter__trigger b { flex: none; color: #827a91; font-size: 14px; font-weight: 600; line-height: 1; }
+.leave-date-filter__popover { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; width: min(380px, calc(100vw - 48px)); padding: 12px; border: 1px solid #e2ddec; border-radius: 14px; background: #fff; box-shadow: 0 14px 30px rgb(50 38 78 / 16%); }
+.leave-date-filter__popover-header { display: flex; min-height: 24px; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.leave-date-filter__popover-header strong { color: #40394c; font-size: 12px; }
+.leave-date-filter__popover-header button { border: 0; background: transparent; color: #76659f; cursor: pointer; font: inherit; font-size: 11px; }
+.leave-date-filter__apply { width: 100%; min-height: 34px; margin-top: 8px; border: 0; border-radius: 8px; background: #6e56a7; color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
 .leave-request-list { display: grid; max-height: calc(100dvh - 260px); overflow-y: auto; }
 .leave-request-list > button { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(150px, 1fr) auto auto; align-items: center; gap: 10px; min-height: 66px; padding: 11px 14px; border: 0; border-bottom: 1px solid #efedf2; background: #fff; text-align: left; }
 .leave-request-list > button.is-selected { background: #f5f2ff; box-shadow: inset 3px 0 #6c57df; }
@@ -6089,6 +6104,7 @@ textarea:focus {
   .employee-history-page .employee-page-heading .custom-dropdown { width: 100%; }
   .leave-admin-layout { padding: 0 10px 18px; }
   .leave-admin-filters { grid-template-columns: 1fr; }
+  .leave-date-filter { grid-column: auto; }
   .leave-request-list { max-height: none; }
   .leave-request-list > button { grid-template-columns: minmax(0, 1fr) auto; }
   .leave-request-list > button > span:nth-child(2) { grid-row: 2; }

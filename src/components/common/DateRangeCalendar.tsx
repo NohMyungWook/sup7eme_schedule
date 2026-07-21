@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatDate, getMonthDays, toDate } from '../../utils/schedule';
 
 type Props = {
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   minDate?: string;
   onChange: (startDate: string, endDate: string) => void;
 };
@@ -11,7 +11,9 @@ type Props = {
 const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
 export function DateRangeCalendar({ startDate, endDate, minDate, onChange }: Props) {
-  const [visibleMonth, setVisibleMonth] = useState(startDate.slice(0, 7));
+  const [visibleMonth, setVisibleMonth] = useState(
+    startDate?.slice(0, 7) || formatDate(new Date()).slice(0, 7),
+  );
   const [selectionStart, setSelectionStart] = useState<string | null>(null);
   const today = formatDate(new Date());
   const monthDays = useMemo(() => getMonthDays(visibleMonth), [visibleMonth]);
@@ -19,7 +21,11 @@ export function DateRangeCalendar({ startDate, endDate, minDate, onChange }: Pro
   const [year, month] = visibleMonth.split('-').map(Number);
 
   useEffect(() => {
-    if (!selectionStart && startDate) setVisibleMonth(startDate.slice(0, 7));
+    if (!startDate) {
+      setSelectionStart(null);
+      return;
+    }
+    if (!selectionStart) setVisibleMonth(startDate.slice(0, 7));
   }, [selectionStart, startDate]);
 
   function moveMonth(amount: number) {
@@ -55,9 +61,9 @@ export function DateRangeCalendar({ startDate, endDate, minDate, onChange }: Pro
         {Array.from({ length: leadingDays }, (_, index) => <span key={`empty-${index}`} />)}
         {monthDays.map((date) => {
           const disabled = Boolean(minDate && date < minDate);
-          const isStart = date === startDate;
-          const isEnd = date === endDate;
-          const isInRange = startDate < date && date < endDate;
+          const isStart = Boolean(startDate) && date === startDate;
+          const isEnd = Boolean(endDate) && date === endDate;
+          const isInRange = Boolean(startDate && endDate && startDate < date && date < endDate);
           return <button
             type="button"
             key={date}
@@ -69,7 +75,7 @@ export function DateRangeCalendar({ startDate, endDate, minDate, onChange }: Pro
           >{Number(date.slice(-2))}</button>;
         })}
       </div>
-      <p>{selectionStart ? '종료 날짜를 선택해주세요.' : startDate === endDate ? `${startDate} 하루` : `${startDate} ~ ${endDate}`}</p>
+      <p>{selectionStart ? '종료 날짜를 선택해주세요.' : !startDate ? '시작일과 종료일을 선택해주세요.' : startDate === endDate ? `${startDate} 하루` : `${startDate} ~ ${endDate}`}</p>
     </div>
   );
 }
