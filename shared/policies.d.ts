@@ -1,5 +1,5 @@
 export type LeaveTransitionInput = {
-  role: 'super_admin' | 'manager' | 'employee';
+  role: 'manager' | 'employee';
   action: 'approve' | 'reject' | 'cancel';
   currentStatus: 'pending' | 'approved' | 'rejected' | 'cancelled';
   isOwner: boolean;

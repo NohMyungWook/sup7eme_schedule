@@ -8,7 +8,6 @@ import {
   assertStoreAccess,
   getPool,
   isManagerRole,
-  isSuperAdmin,
   readJsonBody,
   requireAuth,
   requireMethod,

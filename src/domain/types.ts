@@ -1,4 +1,4 @@
-export type Role = 'super_admin' | 'manager' | 'employee';
+export type Role = 'manager' | 'employee';
 
 export type ActiveView =
   | 'dashboard'

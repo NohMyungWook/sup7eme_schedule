@@ -8,19 +8,20 @@ import {
   statusLabels,
 } from './accountSettingsModel';
 import { ListSkeleton } from '../common/Skeleton';
+import { Dropdown } from '../common/Dropdown';
 import { SettingsIcon } from './SettingsIcon';
 import { useAccountManagement } from './useAccountManagement';
 
 type AccountManagementSettingsProps = {
   canCreate: boolean;
   canUpdate: boolean;
+  canDelete: boolean;
   stores: Store[];
   employees: Employee[];
-  canManageManagers: boolean;
   onBack: () => void;
 };
 
-export function AccountManagementSettings({ canCreate, canUpdate, stores, employees, canManageManagers, onBack }: AccountManagementSettingsProps) {
+export function AccountManagementSettings({ canCreate, canUpdate, canDelete, stores, employees, onBack }: AccountManagementSettingsProps) {
   const {
     accounts,
     activeTab,
@@ -40,13 +41,23 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, employ
     openNewAccount,
     resetDraft,
     resetPassword,
+    deleteAccount,
     selectAccount,
     submitAccount,
     toggleAllStores,
     toggleStore,
     updatePermission,
-  } = useAccountManagement({ canCreate, canUpdate, stores, employees });
-  const canEditDraft = (draft.id ? canUpdate : canCreate) && (canManageManagers || draft.role === 'employee' || !draft.id);
+  } = useAccountManagement({ canCreate, canUpdate, canDelete, stores, employees });
+  const canEditDraft = draft.id ? canUpdate : canCreate;
+  const connectedEmployeeIds = new Set(
+    accounts
+      .map((account) => account.employeeId)
+      .filter((employeeId): employeeId is string => Boolean(employeeId) && employeeId !== draft.employeeId),
+  );
+  const employeeOptions = employees
+    .filter((employee) => employee.isActive !== false)
+    .filter((employee) => employee.id === draft.employeeId || (!employee.accountId && !connectedEmployeeIds.has(employee.id)))
+    .map((employee) => ({ value: employee.id, label: employee.name }));
 
   return (
     <>
@@ -101,8 +112,8 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, employ
               <label>아이디<input value={draft.username} onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))} disabled={!canEditDraft} required /></label>
               {!draft.id ? <label>초기 비밀번호<input type="password" autoComplete="new-password" value={draft.password ?? ''} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} disabled={!canEditDraft} placeholder="미입력 시 안전한 비밀번호 자동 생성" /></label> : null}
             </div>
-            <label className="account-select-field">역할<select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as AccountRole, employeeId: event.target.value === 'employee' ? current.employeeId : null }))} disabled={!canEditDraft || (!canManageManagers && Boolean(draft.id))}>{canManageManagers ? <option value="super_admin">최고 관리자</option> : null}{canManageManagers ? <option value="manager">관리자</option> : null}<option value="employee">일반 직원</option></select><small>{draft.role === 'employee' ? '본인 스케줄과 휴무 신청만 이용합니다.' : '지정된 매장의 관리 기능을 이용합니다.'}</small></label>
-            {draft.role === 'employee' ? <label className="account-select-field">연결 직원<select value={draft.employeeId ?? ''} onChange={(event) => setDraft((current) => ({ ...current, employeeId: event.target.value || null, displayName: employees.find((employee) => employee.id === event.target.value)?.name ?? current.displayName, storeIds: employees.find((employee) => employee.id === event.target.value)?.storeIds ?? current.storeIds }))} disabled={!canEditDraft} required><option value="">직원을 선택하세요</option>{employees.filter((employee) => employee.isActive !== false && (!employee.accountId || employee.id === draft.employeeId)).map((employee) => <option value={employee.id} key={employee.id}>{employee.name}</option>)}</select></label> : null}
+            <label className="account-select-field">역할<Dropdown value={draft.role} options={[{ value: 'manager', label: '관리자' }, { value: 'employee', label: '일반 직원' }]} onChange={(role) => setDraft((current) => ({ ...current, role: role as AccountRole, employeeId: role === 'employee' ? current.employeeId : null }))} disabled={!canEditDraft} ariaLabel="계정 역할" /><small>{draft.role === 'employee' ? '본인 스케줄과 휴무 신청만 이용합니다.' : '지정된 매장의 관리 기능을 이용합니다.'}</small></label>
+            {draft.role === 'employee' ? <label className="account-select-field">연결 직원<Dropdown value={draft.employeeId ?? ''} options={employeeOptions} onChange={(employeeId) => setDraft((current) => ({ ...current, employeeId, displayName: employees.find((employee) => employee.id === employeeId)?.name ?? current.displayName, storeIds: employees.find((employee) => employee.id === employeeId)?.storeIds ?? current.storeIds }))} disabled={!canEditDraft || !employeeOptions.length} placeholder={employeeOptions.length ? '직원을 선택하세요' : '연결 가능한 직원이 없습니다'} ariaLabel="연결 직원" /></label> : null}
             <section className="account-store-field">
               <div><strong>담당 매장</strong><button type="button" className={allStoresSelected ? 'is-selected' : undefined} onClick={toggleAllStores} disabled={!canEditDraft}>전체 매장</button></div>
               <div>{stores.map((store) => <button type="button" className={draft.storeIds.includes(store.id) ? 'is-selected' : undefined} key={store.id} onClick={() => toggleStore(store.id)} disabled={!canEditDraft}>{store.name}</button>)}</div>
@@ -120,7 +131,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, employ
                       className={draft.permissions[menu.id][action.id] ? 'is-on' : undefined}
                       key={action.id}
                       onClick={() => updatePermission(menu.id, action.id)}
-                      disabled={!canEditDraft || draft.role === 'employee' || draft.role === 'super_admin'}
+                      disabled={!canEditDraft || draft.role === 'employee'}
                       aria-label={`${menu.label} ${action.label}`}
                     ><i /></button>
                   ))}
@@ -136,7 +147,7 @@ export function AccountManagementSettings({ canCreate, canUpdate, stores, employ
             </div>
             {initialPassword ? <div className="initial-password-notice" role="status"><strong>임시 비밀번호</strong><code>{initialPassword}</code><small>이 화면을 닫으면 다시 확인할 수 없습니다. 직원에게 안전하게 전달해주세요.</small></div> : null}
             {message ? <p className={message.includes('오류') || message.includes('못') || message.includes('권한') ? 'account-message is-error' : 'account-message'}>{message}</p> : null}
-            <div className="account-editor-actions">{draft.id ? <button type="button" onClick={resetPassword} disabled={!canUpdate || isSaving}>비밀번호 초기화</button> : null}<button type="button" onClick={resetDraft} disabled={isSaving}>취소</button><button className="primary" type="submit" disabled={!canEditDraft || isSaving}>{isSaving ? '저장 중...' : '변경 저장'}</button></div>
+            <div className="account-editor-actions">{draft.id ? <button className="danger" type="button" onClick={deleteAccount} disabled={!canDelete || isSaving}>계정 삭제</button> : null}{draft.id ? <button type="button" onClick={resetPassword} disabled={!canUpdate || isSaving}>비밀번호 초기화</button> : null}<button type="button" onClick={resetDraft} disabled={isSaving}>취소</button><button className="primary" type="submit" disabled={!canEditDraft || isSaving}>{isSaving ? '저장 중...' : '변경 저장'}</button></div>
           </form>
         </aside>
       </div>

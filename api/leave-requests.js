@@ -4,7 +4,6 @@ import {
   assertStoreAccess,
   getPool,
   isManagerRole,
-  isSuperAdmin,
   readJsonBody,
   requireAuth,
   requireMethod,
@@ -125,7 +124,7 @@ async function fetchLeaveRequests(auth, request) {
         leave_request.created_at desc
       limit 500
     `,
-    [status && status !== 'all' ? status : null, storeId, employeeId, range?.startDate ?? null, range?.endDate ?? null, isSuperAdmin(auth) || !isManagerRole(auth.role), auth.storeIds],
+    [status && status !== 'all' ? status : null, storeId, employeeId, range?.startDate ?? null, range?.endDate ?? null, !isManagerRole(auth.role), auth.storeIds],
   );
   return result.rows.map(mapLeaveRequest);
 }

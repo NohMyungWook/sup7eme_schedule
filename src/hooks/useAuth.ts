@@ -77,7 +77,7 @@ export function useAuth({ onLogin, onLogout }: UseAuthOptions) {
     }
 
     const nextRole = payload.user.role;
-    if (!['super_admin', 'manager', 'employee'].includes(nextRole)) {
+    if (!['manager', 'employee'].includes(nextRole)) {
       setLoginError('앱 권한이 올바르지 않습니다.');
       return;
     }

@@ -1,7 +1,6 @@
 import {
   assertManager,
   getPool,
-  isSuperAdmin,
   requireAuth,
   requireMethod,
   sendApiError,
@@ -23,14 +22,13 @@ export default async function handler(request, response) {
 
 async function fetchAdminReferenceState(auth) {
   const pool = getPool();
-  const allStores = isSuperAdmin(auth);
   // Transaction Pooler 공유 연결에서는 모든 DB 요청을 순차 실행한다.
   const storesResult = await pool.query(
     `select id, name, address, phone, memo, is_active, color, created_at, updated_at
      from public.stores
-     where $1::boolean or id = any($2::text[])
+     where id = any($1::text[])
      order by sort_order, name`,
-    [allStores, auth.storeIds],
+    [auth.storeIds],
   );
   const scopedStoreIds = storesResult.rows.map((store) => store.id);
   const employeesResult = await pool.query(
@@ -42,7 +40,7 @@ async function fetchAdminReferenceState(auth) {
          from public.employee_stores employee_store
          join public.stores store on store.id = employee_store.store_id
          where employee_store.employee_id = employee.id
-           and employee_store.store_id = any($2::text[])
+           and employee_store.store_id = any($1::text[])
        ), '{}') as store_ids,
        coalesce((
          select jsonb_agg(jsonb_build_object(
@@ -52,16 +50,16 @@ async function fetchAdminReferenceState(auth) {
          ) order by base_shift.store_id, base_shift.weekday, base_shift.start_time)
          from public.employee_base_shifts base_shift
          where base_shift.employee_id = employee.id
-           and base_shift.store_id = any($2::text[])
+           and base_shift.store_id = any($1::text[])
        ), '[]'::jsonb) as base_shifts
      from public.employees employee
      left join public.app_users user_account on user_account.employee_id = employee.id
-     where ($1::boolean or exists (
+     where employee.deleted_at is null and exists (
        select 1 from public.employee_stores employee_store
-       where employee_store.employee_id = employee.id and employee_store.store_id = any($2::text[])
-     ))
+       where employee_store.employee_id = employee.id and employee_store.store_id = any($1::text[])
+     )
      order by employee.sort_order, employee.created_at`,
-    [allStores, scopedStoreIds],
+    [scopedStoreIds],
   );
   const templatesResult = await pool.query(
     `select template.id, template.label, template.default_start_time, template.default_end_time,

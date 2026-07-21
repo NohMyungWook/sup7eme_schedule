@@ -14,7 +14,7 @@ const managerPermissions = {
   notes: { view: true, create: true, update: true, delete: true },
   settings: { view: true, create: true, update: true, delete: true },
   leaveRequests: { view: true, create: true, update: true, delete: false },
-  accounts: { view: true, create: true, update: true, delete: false },
+  accounts: { view: true, create: true, update: true, delete: true },
 };
 
 const employeePermissions = {
@@ -233,11 +233,7 @@ export function hasPermission(permissions, menu, action) {
 }
 
 export function isManagerRole(role) {
-  return role === 'manager' || role === 'super_admin';
-}
-
-export function isSuperAdmin(auth) {
-  return auth?.role === 'super_admin';
+  return role === 'manager';
 }
 
 export function assertManager(auth) {
@@ -245,14 +241,12 @@ export function assertManager(auth) {
 }
 
 export function assertStoreAccess(auth, storeId) {
-  if (isSuperAdmin(auth)) return;
   if (!auth?.storeIds?.includes(String(storeId))) {
     throw new ApiError(403, '해당 근무지에 접근할 권한이 없습니다.');
   }
 }
 
 export function assertPermission(auth, menu, action) {
-  if (isSuperAdmin(auth)) return;
   if (!hasPermission(auth?.permissions, menu, action)) {
     throw new ApiError(403, '요청 권한이 없습니다.');
   }

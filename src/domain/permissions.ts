@@ -12,7 +12,7 @@ export const defaultManagerPermissions: AccountPermissions = {
   notes: { view: true, create: true, update: true, delete: true },
   settings: { view: true, create: true, update: true, delete: true },
   leaveRequests: { view: true, create: true, update: true, delete: false },
-  accounts: { view: true, create: true, update: true, delete: false },
+  accounts: { view: true, create: true, update: true, delete: true },
 };
 
 export const defaultViewerPermissions: AccountPermissions = {
@@ -26,7 +26,7 @@ export const defaultViewerPermissions: AccountPermissions = {
 };
 
 export function defaultPermissionsForRole(role: Role | null): AccountPermissions {
-  return role === 'manager' || role === 'super_admin'
+  return role === 'manager'
     ? clonePermissions(defaultManagerPermissions)
     : clonePermissions(defaultViewerPermissions);
 }

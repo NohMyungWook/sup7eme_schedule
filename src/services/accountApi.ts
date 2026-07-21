@@ -38,3 +38,15 @@ export async function resetAccountPassword(accountId: string) {
     initialPassword: payload.initialPassword ?? null,
   };
 }
+
+export async function deleteAccount(accountId: string) {
+  const payload = await apiRequest<AccountsPayload & { employeeId?: string | null }>('/api/accounts', {
+    method: 'DELETE',
+    body: { accountId },
+    errorMessage: '계정을 삭제하지 못했습니다.',
+  });
+  return {
+    accounts: Array.isArray(payload.accounts) ? payload.accounts : [],
+    employeeId: payload.employeeId ?? null,
+  };
+}

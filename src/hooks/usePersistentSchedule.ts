@@ -12,7 +12,7 @@ export function usePersistentSchedule(role: Role | null) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const mountedRef = useRef(true);
-  const isManager = role === 'manager' || role === 'super_admin';
+  const isManager = role === 'manager';
 
   const reload = useCallback(async (showLoading = false) => {
     if (!isManager) return;

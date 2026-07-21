@@ -34,7 +34,6 @@ export const accountActions: Array<{ id: AccountPermissionAction; label: string 
 ];
 
 export const roleLabels: Record<AccountRole, string> = {
-  super_admin: '최고 관리자',
   manager: '관리자',
   employee: '일반 직원',
 };
