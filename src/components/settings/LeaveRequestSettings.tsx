@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Employee, LeaveRequest, LeaveRequestStatus, Store } from '../../domain/types';
 import { fetchLeaveRequests, transitionLeaveRequest } from '../../services/leaveApi';
 import { fullDateRangeLabel } from '../../utils/schedule';
+import { DateRangeCalendar } from '../common/DateRangeCalendar';
 import { Dropdown } from '../common/Dropdown';
 import { ListSkeleton } from '../common/Skeleton';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
@@ -26,12 +27,17 @@ export function LeaveRequestSettings({ stores, employees, canUpdate, onBack, onO
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [decisionReason, setDecisionReason] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const refreshRevision = useFocusRefresh();
   const selected = requests.find((request) => request.id === selectedId) ?? requests[0] ?? null;
+  const selectableEmployees = useMemo(
+    () => storeFilter === 'all' ? [] : employees.filter((employee) => employee.storeIds.includes(storeFilter)),
+    [employees, storeFilter],
+  );
   const filtered = useMemo(() => requests.filter((request) =>
     (storeFilter === 'all' || request.storeId === storeFilter)
     && (statusFilter === 'all' || request.status === statusFilter)
@@ -83,11 +89,50 @@ export function LeaveRequestSettings({ stores, employees, canUpdate, onBack, onO
       <div className="leave-admin-layout">
         <section className="leave-admin-list">
           <div className="leave-admin-filters">
-            <Dropdown value={storeFilter} onChange={setStoreFilter} ariaLabel="근무지 필터" options={[{ value: 'all', label: '전체 근무지' }, ...stores.map((store) => ({ value: store.id, label: store.name }))]} />
+            <Dropdown
+              value={storeFilter}
+              onChange={(storeId) => {
+                setStoreFilter(storeId);
+                setEmployeeFilter('all');
+              }}
+              ariaLabel="근무지 필터"
+              options={[{ value: 'all', label: '전체 근무지' }, ...stores.map((store) => ({ value: store.id, label: store.name }))]}
+            />
             <Dropdown value={statusFilter} onChange={setStatusFilter} ariaLabel="상태 필터" options={[{ value: 'all', label: '전체 상태' }, ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]} />
-            <Dropdown value={employeeFilter} onChange={setEmployeeFilter} ariaLabel="직원 필터" options={[{ value: 'all', label: '전체 직원' }, ...employees.map((employee) => ({ value: employee.id, label: employee.name }))]} />
-            <label>시작일<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-            <label>종료일<input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} /></label>
+            <Dropdown
+              value={employeeFilter}
+              onChange={setEmployeeFilter}
+              ariaLabel="직원 필터"
+              placeholder="근무지를 먼저 선택하세요"
+              disabled={storeFilter === 'all'}
+              options={storeFilter === 'all' ? [] : [{ value: 'all', label: '전체 직원' }, ...selectableEmployees.map((employee) => ({ value: employee.id, label: employee.name }))]}
+            />
+            <div className="leave-date-filter">
+              <button
+                type="button"
+                className="leave-date-filter__trigger"
+                aria-label="휴무 신청 조회 기간 선택"
+                aria-expanded={isDateFilterOpen}
+                onClick={() => setIsDateFilterOpen((current) => !current)}
+              >
+                <span><small>시작일</small><strong>{formatFilterDate(startDate)}</strong></span>
+                <i aria-hidden="true">→</i>
+                <span><small>종료일</small><strong>{formatFilterDate(endDate)}</strong></span>
+                <b aria-hidden="true">⌄</b>
+              </button>
+              {isDateFilterOpen ? <div className="leave-date-filter__popover">
+                <div className="leave-date-filter__popover-header">
+                  <strong>조회 기간</strong>
+                  <button type="button" onClick={() => { setStartDate(''); setEndDate(''); }}>초기화</button>
+                </div>
+                <DateRangeCalendar
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(nextStartDate, nextEndDate) => { setStartDate(nextStartDate); setEndDate(nextEndDate); }}
+                />
+                <button type="button" className="leave-date-filter__apply" onClick={() => setIsDateFilterOpen(false)}>적용</button>
+              </div> : null}
+            </div>
           </div>
           <div className="leave-request-list">
             {isLoading ? <ListSkeleton rows={6} /> : null}
@@ -107,4 +152,10 @@ export function LeaveRequestSettings({ stores, employees, canUpdate, onBack, onO
       </div>
     </>
   );
+}
+
+function formatFilterDate(value: string) {
+  if (!value) return '연도. 월. 일.';
+  const [year, month, day] = value.split('-');
+  return `${year}. ${Number(month)}. ${Number(day)}.`;
 }
