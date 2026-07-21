@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+const adminUsername = process.env.TEST_ADMIN_USERNAME || 'admin';
 const password = process.env.TEST_ADMIN_PASSWORD;
 if (!password) throw new Error('TEST_ADMIN_PASSWORD 환경변수가 필요합니다.');
 const targets = await fetch('http://127.0.0.1:9222/json/list').then((response) => response.json());
@@ -31,6 +32,8 @@ await new Promise((resolve, reject) => {
 
 await command('Page.enable');
 await command('Runtime.enable');
+await command('Network.enable');
+await command('Network.clearBrowserCookies');
 await setViewport(1440, 900);
 await command('Page.navigate', { url: 'http://127.0.0.1:5173/?view=schedule' });
 // 이전 스모크 실행에서 같은 디버깅 탭에 남은 콘솔 이벤트는 새 탐색 검증에서 제외합니다.
@@ -40,7 +43,7 @@ if (await evaluate("Boolean(document.querySelector('.login-form'))")) {
   await evaluate(`(() => {
     const [username, password] = document.querySelectorAll('.login-form input');
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    setter.call(username, 'admin'); username.dispatchEvent(new Event('input', { bubbles: true }));
+    setter.call(username, ${JSON.stringify(adminUsername)}); username.dispatchEvent(new Event('input', { bubbles: true }));
     setter.call(password, ${JSON.stringify(password)}); password.dispatchEvent(new Event('input', { bubbles: true }));
     document.querySelector('.login-form').requestSubmit();
   })()`);
@@ -71,6 +74,18 @@ await waitFor("document.querySelector('.settings-overview-layout')");
 await clickByText('button', '관리하기', 3);
 await waitFor("document.querySelector('.account-settings-layout')");
 await waitFor("!document.querySelector('.account-table .list-skeleton')");
+assert.equal(await evaluate("Boolean(document.querySelector('.account-editor-panel select'))"), false, '계정 화면에 네이티브 select가 남아 있습니다.');
+assert.equal(await evaluate("document.body.innerText.includes('최고 관리자')"), false, '최고 관리자 역할 문구가 남아 있습니다.');
+await clickByText('button', '+ 계정 추가');
+await waitFor("document.querySelectorAll('.account-select-field .custom-dropdown').length === 2");
+await evaluate("document.querySelector('.account-select-field .custom-dropdown__trigger')?.click()");
+await waitFor("document.querySelector('.account-select-field .custom-dropdown__menu')");
+assert.deepEqual(
+  await evaluate("[...document.querySelectorAll('.account-select-field:first-of-type .custom-dropdown__option span')].map((option) => option.textContent.trim())"),
+  ['관리자', '일반 직원'],
+  '역할 드롭다운에는 관리자와 일반 직원만 표시되어야 합니다.',
+);
+await evaluate("document.querySelector('.account-select-field .custom-dropdown__option.is-selected')?.click()");
 await assertLayout('desktop-accounts', 1440);
 
 await setViewport(320, 760);

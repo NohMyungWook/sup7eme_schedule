@@ -22,9 +22,9 @@ try {
   );
   const columns = new Set(schema.rows.map((row) => `${row.table_name}.${row.column_name}`));
   for (const column of [
-    'app_users.password_hash', 'app_users.employee_id', 'app_users.must_change_password',
-    'employees.employment_status', 'stores.is_active', 'shift_templates.requires_time_input',
-    'shifts.status', 'shifts.source', 'leave_requests.status', 'schedule_rules.minimum_staff',
+    'app_users.password_hash', 'app_users.employee_id', 'app_users.must_change_password', 'app_users.deleted_at',
+    'employees.employment_status', 'employees.deleted_at', 'stores.is_active', 'shift_templates.requires_time_input',
+    'shifts.status', 'shifts.source', 'leave_requests.status', 'leave_requests.end_date', 'schedule_rules.minimum_staff',
     'day_notes.visible_to_employees',
   ]) assert.ok(columns.has(column), `필수 컬럼 누락: ${column}`);
   assert.equal(columns.has('app_users.email'), false, '사용하지 않는 이메일 컬럼이 남아 있습니다.');
@@ -37,16 +37,19 @@ try {
       'employees_active_sort_idx', 'shifts_store_date_status_idx',
       'shifts_employee_range_idx', 'leave_requests_employee_date_idx',
       'leave_requests_store_status_date_idx', 'schedule_rules_store_weekday_active_idx',
+      'app_users_visible_role_idx', 'employees_visible_sort_idx',
+      'leave_requests_employee_range_status_idx',
     ]],
   );
-  assert.equal(indexes.rowCount, 8, '필수 조회 인덱스가 모두 적용되지 않았습니다.');
+  assert.equal(indexes.rowCount, 11, '필수 조회 인덱스가 모두 적용되지 않았습니다.');
 
   const integrity = await pool.query(
     `select
        (select count(*)::int from public.app_users
         where password_hash is null or password_hash not like '$2%') as invalid_password_hashes,
        (select count(*)::int from public.app_users
-        where role = 'super_admin' and is_active = true and status = 'active') as active_super_admins,
+        where role = 'manager' and is_active = true and status = 'active' and deleted_at is null) as active_managers,
+       (select count(*)::int from public.app_users where role not in ('manager', 'employee')) as invalid_roles,
        (select count(*)::int
         from public.employee_stores relation
         left join public.employees employee on employee.id = relation.employee_id
@@ -60,7 +63,8 @@ try {
   );
   const health = integrity.rows[0];
   assert.equal(health.invalid_password_hashes, 0, '해시되지 않은 계정 비밀번호가 있습니다.');
-  assert.ok(health.active_super_admins >= 1, '활성 최고 관리자 계정이 없습니다.');
+  assert.ok(health.active_managers >= 1, '활성 관리자 계정이 없습니다.');
+  assert.equal(health.invalid_roles, 0, '지원하지 않는 계정 역할이 남아 있습니다.');
   assert.equal(health.orphan_employee_stores, 0, '직원-근무지 고아 관계가 있습니다.');
   assert.equal(health.orphan_shifts, 0, '스케줄 고아 관계가 있습니다.');
 
