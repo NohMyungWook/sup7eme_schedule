@@ -1,4 +1,4 @@
-import { addDateDays, minutesWithinMonth, shiftsOverlap } from '../shared/schedule.js';
+import { addDateDays, minutesWithinMonth, shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,

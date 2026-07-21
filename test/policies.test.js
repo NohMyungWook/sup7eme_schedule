@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertStoreAccess, normalizePermissions } from '../api/_db.js';
+import { assertStoreAccess, normalizePermissions } from '../server/api/_db.js';
 import {
   canAssignEmployee,
   canEditLeaveRequest,

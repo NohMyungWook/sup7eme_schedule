@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-import { leaveDateRangeConflictsShift, shiftsOverlap } from '../shared/schedule.js';
-import { canAssignEmployee } from '../shared/policies.js';
+import { leaveDateRangeConflictsShift, shiftsOverlap } from '../../shared/schedule.js';
+import { canAssignEmployee } from '../../shared/policies.js';
 import {
   ApiError,
   assertManager,

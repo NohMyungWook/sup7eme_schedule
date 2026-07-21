@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { shiftsOverlap } from '../shared/schedule.js';
+import { shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,

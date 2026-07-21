@@ -20,7 +20,7 @@ import {
   queryParams,
   toDateString,
 } from './_validation.js';
-import { resolveLeaveTransition } from '../shared/policies.js';
+import { resolveLeaveTransition } from '../../shared/policies.js';
 
 const STATUSES = new Set(['pending', 'approved', 'rejected', 'cancelled']);
 

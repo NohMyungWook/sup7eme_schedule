@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { addDateDays, leaveDateRangeConflictsShift, shiftsOverlap } from '../shared/schedule.js';
+import { addDateDays, leaveDateRangeConflictsShift, shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,

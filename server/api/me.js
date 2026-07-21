@@ -1,4 +1,4 @@
-import { minutesWithinMonth } from '../shared/schedule.js';
+import { minutesWithinMonth } from '../../shared/schedule.js';
 import {
   ApiError,
   getPool,
