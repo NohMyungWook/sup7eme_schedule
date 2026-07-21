@@ -31,6 +31,12 @@ export async function fetchMyShifts(startDate: string, endDate: string) {
   return payload.shifts ?? [];
 }
 
+export async function fetchTeamShifts(startDate: string, endDate: string) {
+  const query = new URLSearchParams({ startDate, endDate, scope: 'team' });
+  const payload = await apiRequest<{ shifts: Shift[] }>(`/api/shifts?${query}`, { errorMessage: '주간 근무표를 불러오지 못했습니다.' });
+  return payload.shifts ?? [];
+}
+
 export async function fetchMonthlyHours(month: string) {
   const payload = await apiRequest<{ summary: MonthlyHours }>(`/api/me?resource=hours&month=${encodeURIComponent(month)}`, { errorMessage: '월간 근무시간을 불러오지 못했습니다.' });
   return payload.summary;

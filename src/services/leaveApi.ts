@@ -5,9 +5,7 @@ export type LeaveDraft = {
   id?: string;
   storeId: string;
   targetDate: string;
-  allDay: boolean;
-  startTime: string | null;
-  endTime: string | null;
+  endDate: string;
   reason: string;
   updatedAt?: string;
 };

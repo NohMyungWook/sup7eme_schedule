@@ -1,4 +1,5 @@
 export type ShiftRange = { date: string; startTime: string; endTime: string };
+export type LeaveDateRange = { startDate: string; endDate: string };
 export function isValidDate(value: unknown): boolean;
 export function parseTimeToMinutes(value: unknown, allow24?: boolean): number | null;
 export function minutesToTime(value: number): string;
@@ -6,5 +7,7 @@ export function splitShiftTime(time: unknown): { startTime: string; endTime: str
 export function shiftDurationMinutes(startTime: string, endTime: string): number;
 export function shiftBounds(workDate: string, startTime: string, endTime: string): { start: number; end: number } | null;
 export function shiftsOverlap(left: ShiftRange, right: ShiftRange): boolean;
+export function dateInRange(date: string, startDate: string, endDate: string): boolean;
+export function leaveDateRangeConflictsShift(range: LeaveDateRange, shift: ShiftRange): boolean;
 export function minutesWithinMonth(workDate: string, startTime: string, endTime: string, month: string): number;
 export function addDateDays(value: string, amount: number): string;

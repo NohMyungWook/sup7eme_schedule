@@ -16,7 +16,6 @@ import {
   assertDateRange,
   assertId,
   assertText,
-  assertTime,
   normalizeDbTime,
   queryParams,
   toDateString,
@@ -89,6 +88,7 @@ async function fetchLeaveRequests(auth, request) {
         leave_request.store_id,
         store.name as store_name,
         leave_request.target_date,
+        leave_request.end_date,
         leave_request.all_day,
         leave_request.start_time,
         leave_request.end_time,
@@ -104,8 +104,11 @@ async function fetchLeaveRequests(auth, request) {
           where shift.employee_id = leave_request.employee_id
             and shift.status = 'scheduled'
             and (
-              shift.work_date = leave_request.target_date
-              or (shift.work_date = leave_request.target_date - 1 and shift.end_time <= shift.start_time)
+              shift.work_date between leave_request.target_date and leave_request.end_date
+              or (
+                shift.work_date = leave_request.target_date - 1
+                and shift.end_time <= shift.start_time
+              )
             )
         ) as has_schedule_conflict
       from public.leave_requests leave_request
@@ -115,7 +118,7 @@ async function fetchLeaveRequests(auth, request) {
       where ($1::text is null or leave_request.status = $1)
         and ($2::text is null or leave_request.store_id = $2)
         and ($3::text is null or leave_request.employee_id = $3)
-        and ($4::date is null or leave_request.target_date >= $4)
+        and ($4::date is null or leave_request.end_date >= $4)
         and ($5::date is null or leave_request.target_date <= $5)
         and ($6::boolean or leave_request.store_id = any($7::text[]))
       order by
@@ -147,14 +150,14 @@ async function createLeaveRequest(auth, input) {
   const result = await getPool().query(
     `
       insert into public.leave_requests (
-        employee_id, store_id, target_date, all_day,
+        employee_id, store_id, target_date, end_date, all_day,
         start_time, end_time, reason, status, created_by_account
-      ) values ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)
+      ) values ($1, $2, $3, $4, true, null, null, $5, 'pending', $6)
       returning *
     `,
-    [auth.employeeId, request.storeId, request.targetDate, request.allDay, request.startTime, request.endTime, request.reason, auth.id],
+    [auth.employeeId, request.storeId, request.targetDate, request.endDate, request.reason, auth.id],
   );
-  const hasScheduleConflict = await hasScheduleOnDate(auth.employeeId, request.targetDate);
+  const hasScheduleConflict = await hasScheduleInRange(auth.employeeId, request.targetDate, request.endDate);
   return { request: mapLeaveRequest({ ...result.rows[0], has_schedule_conflict: hasScheduleConflict }) };
 }
 
@@ -174,17 +177,17 @@ async function updateLeaveRequest(auth, input) {
   const result = await getPool().query(
     `
       update public.leave_requests
-      set store_id = $3, target_date = $4, all_day = $5,
-          start_time = $6, end_time = $7, reason = $8
+      set store_id = $3, target_date = $4, end_date = $5, all_day = true,
+          start_time = null, end_time = null, reason = $6
       where id = $1 and employee_id = $2 and status = 'pending'
-        and ($9::timestamptz is null
-          or date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $9::timestamptz))
+        and ($7::timestamptz is null
+          or date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $7::timestamptz))
       returning *
     `,
-    [id, auth.employeeId, request.storeId, request.targetDate, request.allDay, request.startTime, request.endTime, request.reason, expectedUpdatedAt?.toISOString() ?? null],
+    [id, auth.employeeId, request.storeId, request.targetDate, request.endDate, request.reason, expectedUpdatedAt?.toISOString() ?? null],
   );
   if (!result.rows[0]) throw new ApiError(409, '대기 중인 본인 신청만 수정할 수 있습니다.', 'INVALID_LEAVE_TRANSITION');
-  const hasScheduleConflict = await hasScheduleOnDate(auth.employeeId, request.targetDate);
+  const hasScheduleConflict = await hasScheduleInRange(auth.employeeId, request.targetDate, request.endDate);
   return { request: mapLeaveRequest({ ...result.rows[0], has_schedule_conflict: hasScheduleConflict }) };
 }
 
@@ -193,7 +196,7 @@ async function transitionLeaveRequest(auth, body) {
   const action = String(body.action ?? '');
   if (!['approve', 'reject', 'cancel'].includes(action)) throw new ApiError(400, '올바르지 않은 상태 변경입니다.');
   const current = await getPool().query(
-    'select employee_id, store_id, status from public.leave_requests where id = $1',
+    'select employee_id, store_id, target_date, end_date, status from public.leave_requests where id = $1',
     [id],
   );
   const currentRequest = current.rows[0];
@@ -234,34 +237,38 @@ async function transitionLeaveRequest(auth, body) {
     [id, nextStatus, decisionReason, auth.id],
   );
   if (!result.rows[0]) throw new ApiError(409, '이미 처리되었거나 취소된 신청입니다.', 'INVALID_LEAVE_TRANSITION');
-  const hasScheduleConflict = await hasScheduleOnDate(result.rows[0].employee_id, toDateString(result.rows[0].target_date));
+  const hasScheduleConflict = await hasScheduleInRange(
+    result.rows[0].employee_id,
+    toDateString(result.rows[0].target_date),
+    toDateString(result.rows[0].end_date),
+  );
   return { request: mapLeaveRequest({ ...result.rows[0], has_schedule_conflict: hasScheduleConflict }) };
 }
 
 function normalizeLeaveInput(input) {
   if (!input || typeof input !== 'object') throw new ApiError(400, '휴무 신청 형식이 올바르지 않습니다.');
-  const allDay = input.allDay !== false;
-  const startTime = allDay ? null : assertTime(input.startTime, '시작 시간', false);
-  const endTime = allDay ? null : assertTime(input.endTime, '종료 시간', true);
-  if (!allDay && startTime === endTime) throw new ApiError(400, '시작 시간과 종료 시간은 달라야 합니다.');
+  const targetDate = assertDate(input.targetDate, '신청 시작 날짜');
+  const endDate = assertDate(input.endDate ?? input.targetDate, '신청 종료 날짜');
+  assertDateRange(targetDate, endDate, 90);
   return {
     storeId: assertId(input.storeId, '근무지 ID'),
-    targetDate: assertDate(input.targetDate, '신청 날짜'),
-    allDay,
-    startTime,
-    endTime,
+    targetDate,
+    endDate,
     reason: assertText(input.reason, '신청 사유', 500),
   };
 }
 
-async function hasScheduleOnDate(employeeId, targetDate) {
+async function hasScheduleInRange(employeeId, targetDate, endDate) {
   const result = await getPool().query(
     `select exists(
       select 1 from public.shifts
       where employee_id = $1 and status = 'scheduled'
-        and (work_date = $2 or (work_date = $2::date - 1 and end_time <= start_time))
+        and (
+          work_date between $2 and $3
+          or (work_date = $2::date - 1 and end_time <= start_time)
+        )
     ) as has_conflict`,
-    [employeeId, targetDate],
+    [employeeId, targetDate, endDate],
   );
   return Boolean(result.rows[0]?.has_conflict);
 }
@@ -274,6 +281,7 @@ function mapLeaveRequest(row) {
     storeId: row.store_id,
     storeName: row.store_name ?? '',
     targetDate: toDateString(row.target_date),
+    endDate: toDateString(row.end_date ?? row.target_date),
     allDay: Boolean(row.all_day),
     startTime: normalizeDbTime(row.start_time),
     endTime: normalizeDbTime(row.end_time),

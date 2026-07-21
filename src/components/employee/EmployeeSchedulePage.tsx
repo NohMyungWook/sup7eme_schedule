@@ -28,8 +28,8 @@ export function EmployeeSchedulePage() {
 
   return (
     <section className="employee-page employee-schedule-page">
-      <header className="employee-page-heading"><div><span>내 스케줄</span><h1>{formatKoreanRange(days)}</h1></div><strong>주 {Math.round(totalMinutes / 6) / 10}시간</strong></header>
-      <div className="employee-week-controls"><button type="button" onClick={() => setWeekStart((current) => addDays(current, -7))} aria-label="이전 주">‹</button><button type="button" onClick={() => setWeekStart(getWeekStart(today))}>이번 주</button><button type="button" onClick={() => setWeekStart((current) => addDays(current, 7))} aria-label="다음 주">›</button></div>
+      <header className="employee-page-heading"><div><span>배정 근무</span><h1>내 스케줄</h1></div><strong>주 {Math.round(totalMinutes / 6) / 10}시간</strong></header>
+      <div className="employee-week-controls"><button type="button" onClick={() => setWeekStart((current) => addDays(current, -7))} aria-label="이전 주">‹</button><button type="button" onClick={() => setWeekStart(getWeekStart(today))} aria-label="이번 주로 이동">{formatKoreanRange(days)}</button><button type="button" onClick={() => setWeekStart((current) => addDays(current, 7))} aria-label="다음 주">›</button></div>
       {isLoading ? <ListSkeleton rows={5} /> : null}
       {error ? <div className="employee-state is-error"><strong>스케줄을 불러오지 못했습니다.</strong><p>{error}</p></div> : null}
       {!isLoading && !error ? <div className="employee-schedule-list">{days.map((date) => {

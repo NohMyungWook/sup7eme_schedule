@@ -154,6 +154,7 @@ export type LeaveRequest = {
   storeId: string;
   storeName: string;
   targetDate: string;
+  endDate: string;
   allDay: boolean;
   startTime: string | null;
   endTime: string | null;

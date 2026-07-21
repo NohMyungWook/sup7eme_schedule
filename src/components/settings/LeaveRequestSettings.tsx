@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Employee, LeaveRequest, LeaveRequestStatus, Store } from '../../domain/types';
 import { fetchLeaveRequests, transitionLeaveRequest } from '../../services/leaveApi';
-import { fullDateLabel } from '../../utils/schedule';
+import { fullDateRangeLabel } from '../../utils/schedule';
 import { Dropdown } from '../common/Dropdown';
 import { ListSkeleton } from '../common/Skeleton';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
@@ -36,7 +36,7 @@ export function LeaveRequestSettings({ stores, employees, canUpdate, onBack, onO
     (storeFilter === 'all' || request.storeId === storeFilter)
     && (statusFilter === 'all' || request.status === statusFilter)
     && (employeeFilter === 'all' || request.employeeId === employeeFilter)
-    && (!startDate || request.targetDate >= startDate)
+    && (!startDate || request.endDate >= startDate)
     && (!endDate || request.targetDate <= endDate)), [employeeFilter, endDate, requests, startDate, statusFilter, storeFilter]);
 
   useEffect(() => {
@@ -92,12 +92,12 @@ export function LeaveRequestSettings({ stores, employees, canUpdate, onBack, onO
           <div className="leave-request-list">
             {isLoading ? <ListSkeleton rows={6} /> : null}
             {!isLoading && !filtered.length ? <div className="leave-empty"><strong>조건에 맞는 신청이 없습니다.</strong><p>필터를 변경하거나 새 신청이 들어오면 이곳에 표시됩니다.</p></div> : null}
-            {!isLoading && filtered.map((request) => <button type="button" className={request.id === selected?.id ? 'is-selected' : ''} key={request.id} onClick={() => { setSelectedId(request.id); setDecisionReason(''); setMessage(''); }}><span><strong>{request.employeeName}</strong><small>{request.storeName}</small></span><span><b>{fullDateLabel(request.targetDate)}</b><small>{request.allDay ? '하루 전체' : `${request.startTime}-${request.endTime}`}</small></span>{request.hasScheduleConflict ? <em>스케줄 충돌</em> : null}<i className={`leave-status ${request.status}`}>{statusLabels[request.status]}</i></button>)}
+            {!isLoading && filtered.map((request) => <button type="button" className={request.id === selected?.id ? 'is-selected' : ''} key={request.id} onClick={() => { setSelectedId(request.id); setDecisionReason(''); setMessage(''); }}><span><strong>{request.employeeName}</strong><small>{request.storeName}</small></span><span><b>{fullDateRangeLabel(request.targetDate, request.endDate)}</b><small>선택 날짜 전체</small></span>{request.hasScheduleConflict ? <em>스케줄 충돌</em> : null}<i className={`leave-status ${request.status}`}>{statusLabels[request.status]}</i></button>)}
           </div>
         </section>
         <aside className="leave-admin-detail">
           {!selected ? <div className="leave-empty"><strong>신청을 선택해주세요.</strong></div> : <>
-            <header><div><span className={`leave-status ${selected.status}`}>{statusLabels[selected.status]}</span><h2>{selected.employeeName} · {fullDateLabel(selected.targetDate)}</h2><p>{selected.storeName} · {selected.allDay ? '하루 전체' : `${selected.startTime}-${selected.endTime}`}</p></div></header>
+            <header><div><span className={`leave-status ${selected.status}`}>{statusLabels[selected.status]}</span><h2>{selected.employeeName} · {fullDateRangeLabel(selected.targetDate, selected.endDate)}</h2><p>{selected.storeName} · 선택 날짜 전체</p></div></header>
             <section><h3>신청 사유</h3><p>{selected.reason}</p></section>
             {selected.hasScheduleConflict ? <section className="leave-conflict"><strong>배정된 근무가 있습니다.</strong><p>신청 승인 후에도 스케줄은 자동 삭제되지 않습니다. 스케줄을 직접 확인하고 조정해주세요.</p><button type="button" onClick={() => onOpenSchedule(selected.targetDate, selected.storeId)}>해당 날짜 스케줄 보기</button></section> : null}
             {selected.status === 'pending' ? <section className="leave-decision"><label>처리 사유<textarea value={decisionReason} maxLength={500} onChange={(event) => setDecisionReason(event.target.value)} placeholder="승인 메모 또는 반려 사유를 입력하세요." /></label><div><button type="button" onClick={() => transition('reject')} disabled={!canUpdate || isSaving}>반려</button><button className="primary" type="button" onClick={() => transition('approve')} disabled={!canUpdate || isSaving}>{isSaving ? '처리 중...' : '승인'}</button></div></section> : <section><h3>처리 결과</h3><p>{selected.decisionReason || '별도 처리 사유가 없습니다.'}</p><small>{selected.processedByName ? `${selected.processedByName} · ` : ''}{selected.processedAt ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selected.processedAt)) : ''}</small></section>}

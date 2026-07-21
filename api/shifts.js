@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { shiftsOverlap } from '../shared/schedule.js';
+import { leaveDateRangeConflictsShift, shiftsOverlap } from '../shared/schedule.js';
 import { canAssignEmployee } from '../shared/policies.js';
 import {
   ApiError,
@@ -66,7 +66,10 @@ export default async function handler(request, response) {
 
 async function fetchShifts(auth, request) {
   const params = queryParams(request);
-  const { startDate, endDate } = assertDateRange(params.get('startDate'), params.get('endDate'), 370);
+  const scope = params.get('scope') ?? 'mine';
+  if (!['mine', 'team'].includes(scope)) throw new ApiError(400, '스케줄 조회 범위가 올바르지 않습니다.');
+  const isTeamView = !isManagerRole(auth.role) && scope === 'team';
+  const { startDate, endDate } = assertDateRange(params.get('startDate'), params.get('endDate'), isTeamView ? 14 : 370);
   let storeId = params.get('storeId');
   let employeeId = params.get('employeeId');
 
@@ -77,7 +80,7 @@ async function fetchShifts(auth, request) {
     employeeId = employeeId ? assertId(employeeId, '직원 ID') : null;
   } else {
     if (!auth.employeeId) throw new ApiError(403, '연결된 직원 프로필이 없습니다.');
-    employeeId = auth.employeeId;
+    employeeId = isTeamView ? null : auth.employeeId;
     storeId = storeId ? assertId(storeId, '근무지 ID') : null;
     if (storeId && !auth.storeIds.includes(storeId)) throw new ApiError(403, '해당 근무지에 접근할 권한이 없습니다.');
   }
@@ -88,17 +91,25 @@ async function fetchShifts(auth, request) {
         shift.id, shift.store_id, store.name as store_name,
         shift.work_date, shift.employee_id, employee.name as employee_name,
         shift.template_id, template.label as template_label, template.color as template_color,
-        shift.start_time, shift.end_time, shift.note, shift.status,
+        shift.start_time, shift.end_time,
+        case when $5::boolean then '' else shift.note end as note,
+        shift.status,
         shift.source, shift.created_at, shift.updated_at,
-        day_note.text as day_note,
-        (
+        case when $5::boolean then '' else day_note.text end as day_note,
+        case when $5::boolean then null else (
           select leave_request.status from public.leave_requests leave_request
           where leave_request.employee_id = shift.employee_id
-            and leave_request.target_date = shift.work_date
             and leave_request.status in ('pending', 'approved')
+            and (
+              shift.work_date between leave_request.target_date and leave_request.end_date
+              or (
+                shift.end_time <= shift.start_time
+                and shift.work_date + 1 between leave_request.target_date and leave_request.end_date
+              )
+            )
           order by case leave_request.status when 'approved' then 0 else 1 end
           limit 1
-        ) as leave_conflict_status
+        ) end as leave_conflict_status
       from public.shifts shift
       join public.stores store on store.id = shift.store_id
       join public.employees employee on employee.id = shift.employee_id
@@ -110,10 +121,11 @@ async function fetchShifts(auth, request) {
       where shift.work_date between $1 and $2
         and ($3::text is null or shift.store_id = $3)
         and ($4::text is null or shift.employee_id = $4)
+        and ($5::boolean = false or shift.store_id = any($6::text[]))
         and shift.status = 'scheduled'
       order by shift.work_date, shift.start_time, employee.sort_order
     `,
-    [startDate, endDate, storeId, employeeId],
+    [startDate, endDate, storeId, employeeId, isTeamView, auth.storeIds],
   );
   return result.rows.map(mapShift);
 }
@@ -183,22 +195,29 @@ async function saveShift(auth, input, options) {
   if (overlap) throw new ApiError(409, '같은 시간에 이미 등록된 근무가 있습니다.', 'SHIFT_OVERLAP');
 
   const leaves = await client.query(
-    `select id, target_date, all_day, start_time, end_time, status, reason
+    `select id, target_date, end_date, all_day, start_time, end_time, status, reason
      from public.leave_requests
      where employee_id = $1
        and status in ('pending', 'approved')
-       and target_date between $2::date - 1 and $2::date + 1
+       and target_date <= $2::date + 1
+       and end_date >= $2::date - 1
      order by case status when 'approved' then 0 else 1 end, created_at`,
     [shift.employeeId, shift.date],
   );
-  const conflictingLeaves = leaves.rows.filter((leave) => shiftsOverlap(
-    { date: shift.date, startTime: shift.startTime, endTime: shift.endTime },
-    {
+  const conflictingLeaves = leaves.rows.filter((leave) => {
+    const candidate = { date: shift.date, startTime: shift.startTime, endTime: shift.endTime };
+    if (leave.all_day) {
+      return leaveDateRangeConflictsShift({
+        startDate: toDateString(leave.target_date),
+        endDate: toDateString(leave.end_date ?? leave.target_date),
+      }, candidate);
+    }
+    return shiftsOverlap(candidate, {
       date: toDateString(leave.target_date),
-      startTime: leave.all_day ? '00:00' : normalizeDbTime(leave.start_time),
-      endTime: leave.all_day ? '24:00' : normalizeDbTime(leave.end_time),
-    },
-  ));
+      startTime: normalizeDbTime(leave.start_time),
+      endTime: normalizeDbTime(leave.end_time),
+    });
+  });
   const approvedConflict = conflictingLeaves.find((leave) => leave.status === 'approved');
   if (approvedConflict) throw new ApiError(409, '승인된 휴무 신청과 시간이 겹쳐 배치할 수 없습니다.', 'APPROVED_LEAVE_CONFLICT');
   if (conflictingLeaves.length && !options.acknowledgeConflicts) {
@@ -311,6 +330,7 @@ function mapLeaveWarning(row) {
     id: row.id,
     status: row.status,
     targetDate: toDateString(row.target_date),
+    endDate: toDateString(row.end_date ?? row.target_date),
     reason: row.reason,
   };
 }
