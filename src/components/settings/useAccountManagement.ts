@@ -6,7 +6,7 @@ import type {
   Employee,
   Store,
 } from '../../domain/types';
-import { fetchAccounts, resetAccountPassword, saveAccount } from '../../services/accountApi';
+import { deleteAccount as deleteAccountFromApi, fetchAccounts, resetAccountPassword, saveAccount } from '../../services/accountApi';
 import {
   createAccountDraft,
   getStoreSummary,
@@ -16,11 +16,12 @@ import {
 type UseAccountManagementOptions = {
   canCreate: boolean;
   canUpdate: boolean;
+  canDelete: boolean;
   stores: Store[];
   employees: Employee[];
 };
 
-export function useAccountManagement({ canCreate, canUpdate, stores, employees }: UseAccountManagementOptions) {
+export function useAccountManagement({ canCreate, canUpdate, canDelete, stores, employees }: UseAccountManagementOptions) {
   const [accounts, setAccounts] = useState<AppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [draft, setDraft] = useState(() => createAccountDraft());
@@ -47,7 +48,7 @@ export function useAccountManagement({ canCreate, canUpdate, stores, employees }
   });
   const stats = useMemo(() => ({
     active: accounts.filter((account) => account.status === 'active').length,
-    managers: accounts.filter((account) => account.role === 'manager' || account.role === 'super_admin').length,
+    managers: accounts.filter((account) => account.role === 'manager').length,
     employees: accounts.filter((account) => account.role === 'employee').length,
   }), [accounts]);
   const allStoresSelected =
@@ -102,6 +103,10 @@ export function useAccountManagement({ canCreate, canUpdate, stores, employees }
     event.preventDefault();
     setMessage('');
     if (draft.id ? !canUpdate : !canCreate) return;
+    if (draft.role === 'employee' && !draft.employeeId) {
+      setMessage('연결할 직원을 선택해주세요.');
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -135,6 +140,31 @@ export function useAccountManagement({ canCreate, canUpdate, stores, employees }
       setMessage('비밀번호를 초기화했습니다.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '비밀번호를 초기화하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (!canDelete || !draft.id || isSaving) return;
+    const detail = draft.employeeId
+      ? '계정과 연결된 직원이 함께 삭제됩니다. 과거 스케줄 기록은 유지됩니다.'
+      : '계정을 삭제하면 더 이상 로그인할 수 없습니다.';
+    if (!window.confirm(`${detail}\n계속하시겠습니까?`)) return;
+
+    setMessage('');
+    setInitialPassword('');
+    setIsSaving(true);
+    try {
+      const result = await deleteAccountFromApi(draft.id);
+      setAccounts(result.accounts);
+      const firstAccount = result.accounts[0];
+      setSelectedAccountId(firstAccount?.id ?? '');
+      setDraft(createAccountDraft(firstAccount, stores));
+      setMessage(result.employeeId ? '계정과 연결된 직원을 삭제했습니다.' : '계정을 삭제했습니다.');
+      window.dispatchEvent(new CustomEvent('sup7eme:data-changed', { detail: { resources: ['accounts', 'employees', 'schedule'] } }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '계정을 삭제하지 못했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -201,6 +231,7 @@ export function useAccountManagement({ canCreate, canUpdate, stores, employees }
     openNewAccount,
     resetDraft,
     resetPassword,
+    deleteAccount,
     selectAccount,
     submitAccount,
     toggleAllStores,

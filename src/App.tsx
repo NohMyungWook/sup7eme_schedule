@@ -145,7 +145,7 @@ export default function App() {
         <div className="app-user-chip" aria-label="현재 로그인 사용자">
           <span className="app-user-avatar">{(app.displayName || app.role || '?').slice(0, 1)}</span>
           <div>
-            <span>{app.role === 'super_admin' ? '최고 관리자' : '매니저'}</span>
+            <span>관리자</span>
             <strong>{app.displayName || '관리자'}</strong>
           </div>
           <button type="button" onClick={app.logout}>로그아웃</button>
@@ -175,11 +175,11 @@ export default function App() {
             isTemplateSaving={app.isTemplateSaving}
             canCreate={app.canCreateSettings}
             canUpdate={app.canUpdateSettings}
-            canManageManagers={app.role === 'super_admin'}
             canDelete={app.canDeleteSettings}
             canViewAccounts={app.canViewAccounts}
             canCreateAccounts={app.canCreateAccounts}
             canUpdateAccounts={app.canUpdateAccounts}
+            canDeleteAccounts={app.canDeleteAccounts}
             canViewLeaveRequests={app.canViewLeaveRequests}
             canUpdateLeaveRequests={app.canUpdateLeaveRequests}
             activeSettingsPanel={app.activeSettingsPanel}
@@ -342,7 +342,7 @@ function MobileNavMenu({
   onViewChange,
   onLogout,
 }: MobileNavMenuProps) {
-  const isManager = role === 'manager' || role === 'super_admin';
+  const isManager = role === 'manager';
   const navItems: Array<{ view: ActiveView; label: string }> = [
     { view: 'dashboard', label: '대시보드' },
     { view: 'schedule', label: '스케줄' },

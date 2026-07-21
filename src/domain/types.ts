@@ -1,4 +1,4 @@
-export type Role = 'super_admin' | 'manager' | 'employee';
+export type Role = 'manager' | 'employee';
 
 export type ActiveView =
   | 'dashboard'
@@ -154,6 +154,7 @@ export type LeaveRequest = {
   storeId: string;
   storeName: string;
   targetDate: string;
+  endDate: string;
   allDay: boolean;
   startTime: string | null;
   endTime: string | null;

@@ -4,7 +4,6 @@ import {
   assertPermission,
   assertStoreAccess,
   getPool,
-  isSuperAdmin,
   readJsonBody,
   requireAuth,
   requireMethod,
@@ -36,9 +35,9 @@ export default async function handler(request, response) {
          left join public.shift_templates template on template.id = rule.template_id
          where rule.is_active = true
            and ($1::text is null or rule.store_id = $1)
-           and ($2::boolean or rule.store_id = any($3::text[]))
+           and rule.store_id = any($2::text[])
          order by store.sort_order, rule.weekday, rule.start_time`,
-        [storeId, isSuperAdmin(auth), auth.storeIds],
+        [storeId, auth.storeIds],
       );
       sendJson(response, 200, { rules: result.rows.map(mapRule) });
       return;

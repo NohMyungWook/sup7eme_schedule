@@ -54,6 +54,23 @@ export function shiftsOverlap(left, right) {
   return leftBounds.start < rightBounds.end && rightBounds.start < leftBounds.end;
 }
 
+export function dateInRange(date, startDate, endDate) {
+  return isValidDate(date)
+    && isValidDate(startDate)
+    && isValidDate(endDate)
+    && startDate <= date
+    && date <= endDate;
+}
+
+export function leaveDateRangeConflictsShift(range, shift) {
+  if (!dateInRange(range.startDate, range.startDate, range.endDate)) return false;
+  if (dateInRange(shift.date, range.startDate, range.endDate)) return true;
+  const start = parseTimeToMinutes(shift.startTime);
+  const end = parseTimeToMinutes(shift.endTime, true);
+  if (start === null || end === null || end > start) return false;
+  return dateInRange(addDateDays(shift.date, 1), range.startDate, range.endDate);
+}
+
 export function minutesWithinMonth(workDate, startTime, endTime, month) {
   if (!/^\d{4}-\d{2}$/.test(String(month))) return 0;
   const bounds = shiftBounds(workDate, startTime, endTime);

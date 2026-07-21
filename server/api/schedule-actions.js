@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { addDateDays, shiftsOverlap } from '../shared/schedule.js';
+import { addDateDays, leaveDateRangeConflictsShift, shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,
@@ -186,24 +186,31 @@ async function generateBaseWeek(auth, storeId, weekStart) {
 
 async function fetchWeekLeaves(client, storeId, startDate, endDate) {
   const result = await client.query(
-    `select employee_id, target_date, all_day, start_time, end_time, status
+    `select employee_id, target_date, end_date, all_day, start_time, end_time, status
      from public.leave_requests
      where store_id = $1 and status in ('pending', 'approved')
-       and target_date between $2::date - 1 and $3::date + 1`,
+       and target_date <= $3::date + 1
+       and end_date >= $2::date - 1`,
     [storeId, startDate, endDate],
   );
   return result.rows;
 }
 
 function findLeaveConflict(leaves, candidate) {
-  return leaves.find((leave) => leave.employee_id === candidate.employeeId && shiftsOverlap(
-    { date: candidate.date, startTime: candidate.startTime, endTime: candidate.endTime },
-    {
+  return leaves.find((leave) => {
+    if (leave.employee_id !== candidate.employeeId) return false;
+    if (leave.all_day) {
+      return leaveDateRangeConflictsShift({
+        startDate: toDateString(leave.target_date),
+        endDate: toDateString(leave.end_date ?? leave.target_date),
+      }, candidate);
+    }
+    return shiftsOverlap(candidate, {
       date: toDateString(leave.target_date),
-      startTime: leave.all_day ? '00:00' : normalizeDbTime(leave.start_time),
-      endTime: leave.all_day ? '24:00' : normalizeDbTime(leave.end_time),
-    },
-  ));
+      startTime: normalizeDbTime(leave.start_time),
+      endTime: normalizeDbTime(leave.end_time),
+    });
+  });
 }
 
 async function insertGeneratedShifts(client, accountId, storeId, shifts, source) {

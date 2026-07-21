@@ -123,6 +123,11 @@ export function fullDateLabel(date: string) {
   }).format(toDate(date));
 }
 
+export function fullDateRangeLabel(startDate: string, endDate: string) {
+  if (!endDate || startDate === endDate) return fullDateLabel(startDate);
+  return `${fullDateLabel(startDate)} ~ ${fullDateLabel(endDate)}`;
+}
+
 export function employeeName(id: string, employees: Employee[]) {
   return employees.find((employee) => employee.id === id)?.name ?? id;
 }

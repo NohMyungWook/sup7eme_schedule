@@ -1,11 +1,10 @@
-import { addDateDays, minutesWithinMonth, shiftsOverlap } from '../shared/schedule.js';
+import { addDateDays, minutesWithinMonth, shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,
   assertPermission,
   assertStoreAccess,
   getPool,
-  isSuperAdmin,
   requireAuth,
   requireMethod,
   sendApiError,
@@ -63,9 +62,9 @@ async function buildDashboard(auth, storeId, month) {
      join public.stores store on store.id = shift.store_id
      where shift.status = 'scheduled'
        and shift.work_date between $1::date - 1 and $2::date
-       and ($3::boolean or shift.store_id = any($4::text[]))
+       and shift.store_id = any($3::text[])
      order by store.sort_order, shift.work_date, shift.start_time`,
-    [startDate, endDate, isSuperAdmin(auth), auth.storeIds],
+    [startDate, endDate, auth.storeIds],
   );
 
   const shifts = shiftsResult.rows.map((row) => ({

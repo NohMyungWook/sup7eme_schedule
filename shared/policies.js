@@ -1,8 +1,6 @@
-const MANAGER_ROLES = new Set(['manager', 'super_admin']);
-
 export function resolveLeaveTransition({ role, action, currentStatus, isOwner }) {
   if (currentStatus !== 'pending') return null;
-  if (MANAGER_ROLES.has(role)) {
+  if (role === 'manager') {
     if (action === 'approve') return 'approved';
     if (action === 'reject') return 'rejected';
     return null;

@@ -48,7 +48,7 @@ try {
     expectedStatus: 200,
   });
   adminCookie = adminLogin.cookie;
-  assert.equal(adminLogin.data.user.role, 'super_admin');
+  assert.equal(adminLogin.data.user.role, 'manager');
   assert.ok(adminLogin.data.user.id);
 
   const reference = await api('/api/schedule', { cookie: adminCookie, expectedStatus: 200 });
@@ -97,6 +97,21 @@ try {
   });
   assert.equal(employeeCreate.data.employee.accountStatus, 'active');
   assert.ok(employeeCreate.data.initialPassword);
+  await api('/api/accounts', {
+    method: 'POST', cookie: adminCookie, expectedStatus: 409,
+    body: {
+      account: {
+        username: `duplicate.${suffix}`,
+        displayName: '중복 연결 테스트',
+        password: employeePassword,
+        role: 'employee',
+        status: 'active',
+        employeeId: ids.employee,
+        storeIds: [primaryStore.id, otherStore.id],
+        permissions: readOnlySchedulePermissions(),
+      },
+    },
+  });
 
   const managerCreate = await api('/api/accounts', {
     method: 'POST', cookie: adminCookie, expectedStatus: 200,
@@ -197,12 +212,23 @@ try {
     cookie: employeeCookie, expectedStatus: 200,
   });
   assert.ok(tamperedShifts.data.shifts.every((shift) => shift.employeeId === ids.employee));
+  const teamShifts = await api('/api/shifts?scope=team&startDate=2099-01-07&endDate=2099-01-13', {
+    cookie: employeeCookie, expectedStatus: 200,
+  });
+  const visibleTeamShift = teamShifts.data.shifts.find((shift) => shift.id === ids.protectedShift && shift.employeeId !== ids.employee);
+  assert.ok(visibleTeamShift);
+  assert.equal(visibleTeamShift.note, '');
+  assert.ok(teamShifts.data.shifts.every((shift) => shift.leaveConflictStatus === null));
 
   const leaveCreate = await api('/api/leave-requests', {
     method: 'POST', cookie: employeeCookie, expectedStatus: 201,
-    body: { request: { storeId: primaryStore.id, targetDate: '2099-01-10', allDay: true, startTime: null, endTime: null, reason: '통합 테스트 신청' } },
+    body: { request: { storeId: primaryStore.id, targetDate: '2099-01-10', endDate: '2099-01-12', reason: '통합 테스트 신청' } },
   });
   leaveId = leaveCreate.data.request.id;
+  await api('/api/leave-requests', {
+    method: 'POST', cookie: employeeCookie, expectedStatus: 400,
+    body: { request: { storeId: primaryStore.id, targetDate: '2099-01-13', endDate: '2099-01-12', reason: '잘못된 날짜 범위' } },
+  });
   const leaveUpdate = await api('/api/leave-requests', {
     method: 'PUT', cookie: employeeCookie, expectedStatus: 200,
     body: { request: { ...leaveCreate.data.request, reason: '통합 테스트 신청 수정' } },
@@ -210,8 +236,11 @@ try {
   assert.equal(leaveUpdate.data.request.status, 'pending');
   const cancelCandidate = await api('/api/leave-requests', {
     method: 'POST', cookie: employeeCookie, expectedStatus: 201,
-    body: { request: { storeId: primaryStore.id, targetDate: '2099-01-11', allDay: false, startTime: '09:30', endTime: '10:30', reason: '통합 테스트 취소 신청' } },
+    body: { request: { storeId: primaryStore.id, targetDate: '2099-01-11', endDate: '2099-01-13', reason: '통합 테스트 취소 신청' } },
   });
+  assert.equal(cancelCandidate.data.request.endDate, '2099-01-13');
+  assert.equal(cancelCandidate.data.request.allDay, true);
+  assert.equal(cancelCandidate.data.request.startTime, null);
   const cancelledLeave = await api('/api/leave-requests', {
     method: 'PATCH', cookie: employeeCookie, expectedStatus: 200,
     body: { requestId: cancelCandidate.data.request.id, action: 'cancel' },
@@ -231,10 +260,11 @@ try {
   });
   assert.equal(pendingList.data.requests.some((request) => request.id === leaveId), true);
   const leaveRow = await pool.query(
-    'select target_date, all_day, start_time, end_time, status from public.leave_requests where id = $1',
+    'select target_date::text, end_date::text, all_day, start_time, end_time, status from public.leave_requests where id = $1',
     [leaveId],
   );
   assert.equal(leaveRow.rows[0].all_day, true);
+  assert.equal(leaveRow.rows[0].end_date, '2099-01-12');
   assert.equal(leaveRow.rows[0].status, 'pending');
 
   const [startTime, endTime] = template.time.split('-');
@@ -244,17 +274,17 @@ try {
   ), true);
   const pendingConflict = await api('/api/shifts', {
     method: 'POST', cookie: adminCookie,
-    body: { shift: { id: ids.shift, storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-10', startTime, endTime, note: '' } },
+    body: { shift: { id: ids.shift, storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-11', startTime, endTime, note: '' } },
   });
   assert.equal(pendingConflict.status, 409, `대기 휴무 충돌 응답: ${JSON.stringify(pendingConflict.data)}`);
   const shiftCreate = await api('/api/shifts', {
     method: 'POST', cookie: adminCookie, expectedStatus: 201,
-    body: { acknowledgeConflicts: true, shift: { id: ids.shift, storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-10', startTime, endTime, note: '' } },
+    body: { acknowledgeConflicts: true, shift: { id: ids.shift, storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-11', startTime, endTime, note: '' } },
   });
   assert.equal(shiftCreate.data.shift.employeeId, ids.employee);
   await api('/api/shifts', {
     method: 'POST', cookie: adminCookie, expectedStatus: 409,
-    body: { acknowledgeConflicts: true, shift: { storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-10', startTime, endTime, note: '' } },
+    body: { acknowledgeConflicts: true, shift: { storeId: primaryStore.id, employeeId: ids.employee, templateId: template.id, date: '2099-01-11', startTime, endTime, note: '' } },
   });
 
   const leaveApproval = await api('/api/leave-requests', {
@@ -323,6 +353,24 @@ try {
     method: 'POST', expectedStatus: 401,
     body: { username: ids.employeeUsername, password: passwordReset.data.initialPassword },
   });
+  const accountDeletion = await api('/api/accounts', {
+    method: 'DELETE', cookie: adminCookie, expectedStatus: 200,
+    body: { accountId: employeeAccount.id },
+  });
+  assert.equal(accountDeletion.data.employeeId, ids.employee);
+  assert.equal(accountDeletion.data.accounts.some((account) => account.id === employeeAccount.id), false);
+  const employeesAfterAccountDeletion = await api('/api/employees?includeInactive=true', {
+    cookie: adminCookie, expectedStatus: 200,
+  });
+  assert.equal(employeesAfterAccountDeletion.data.employees.some((employee) => employee.id === ids.employee), false);
+  const deletedRows = await pool.query(
+    `select
+       (select deleted_at is not null from public.app_users where id = $1) as account_deleted,
+       (select deleted_at is not null and employment_status = 'terminated' from public.employees where id = $2) as employee_deleted`,
+    [employeeAccount.id, ids.employee],
+  );
+  assert.equal(deletedRows.rows[0].account_deleted, true);
+  assert.equal(deletedRows.rows[0].employee_deleted, true);
   await api('/api/templates', { method: 'DELETE', cookie: adminCookie, expectedStatus: 200, body: { templateId: ids.template } });
 
   process.stdout.write('API 통합 테스트 통과: 인증, 매장, 시간대, 직원/계정, 권한 범위, 휴무, 스케줄, 메모, 규칙\n');

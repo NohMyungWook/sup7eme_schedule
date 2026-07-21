@@ -17,6 +17,7 @@ type DropdownProps = {
   onChange: (value: string) => void;
   ariaLabel?: string;
   placeholder?: string;
+  disabled?: boolean;
 };
 
 export function Dropdown({
@@ -25,6 +26,7 @@ export function Dropdown({
   onChange,
   ariaLabel,
   placeholder = '선택하세요',
+  disabled = false,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,7 @@ export function Dropdown({
   }, [isOpen]);
 
   function open() {
+    if (disabled || !options.length) return;
     setIsOpen(true);
     requestAnimationFrame(() => {
       optionRefs.current[Math.max(selectedIndex, 0)]?.focus();
@@ -106,6 +109,7 @@ export function Dropdown({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
+        disabled={disabled}
         onClick={() => (isOpen ? close() : open())}
         onKeyDown={handleTriggerKeyDown}
       >

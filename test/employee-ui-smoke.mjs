@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import pg from 'pg';
 
 const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173';
+const adminUsername = process.env.TEST_ADMIN_USERNAME || 'admin';
 const adminPassword = process.env.TEST_ADMIN_PASSWORD;
 if (!adminPassword) throw new Error('TEST_ADMIN_PASSWORD 환경변수가 필요합니다.');
 if (!process.env.SUPABASE_DB_URL) throw new Error('SUPABASE_DB_URL 환경변수가 필요합니다.');
@@ -25,7 +26,7 @@ const pool = new pg.Pool({
 let socket;
 try {
   const adminLogin = await api('/api/login', {
-    method: 'POST', body: { username: 'admin', password: adminPassword }, expectedStatus: 200,
+    method: 'POST', body: { username: adminUsername, password: adminPassword }, expectedStatus: 200,
   });
   const reference = await api('/api/schedule', { cookie: adminLogin.cookie, expectedStatus: 200 });
   const store = reference.data.state.stores.find((item) => item.isActive);
@@ -73,8 +74,20 @@ try {
   await cdp.waitFor("document.querySelector('.employee-bottom-nav') && document.querySelector('.employee-schedule-page')");
   await assertLayout(cdp, 'employee-schedule');
 
+  await cdp.clickByText('button', '주간 근무표');
+  await cdp.waitFor("document.querySelector('.employee-team-page') && !document.querySelector('.employee-team-page .list-skeleton') && !document.querySelector('.employee-team-page .employee-state.is-error') && new URLSearchParams(location.search).get('employeeTab') === 'team'");
+  await assertLayout(cdp, 'employee-team-schedule');
+
   await cdp.clickByText('button', '휴무 신청');
   await cdp.waitFor("document.querySelector('.employee-leave-page') && new URLSearchParams(location.search).get('employeeTab') === 'leave'");
+  assert.equal(await cdp.evaluate("Boolean(document.querySelector('.date-range-calendar') && !document.querySelector('.employee-leave-page input[type=date]') && !document.querySelector('.employee-leave-time'))"), true, '휴무 신청은 커스텀 날짜 범위 달력을 사용해야 합니다.');
+  const calendarTitle = await cdp.evaluate("document.querySelector('.date-range-calendar > header strong').textContent");
+  await cdp.evaluate("document.querySelectorAll('.date-range-calendar > header button')[1].click()");
+  await cdp.waitFor(`document.querySelector('.date-range-calendar > header strong').textContent !== ${JSON.stringify(calendarTitle)}`);
+  await cdp.evaluate("document.querySelectorAll('.date-range-calendar-days button:not(:disabled)')[1].click()");
+  await cdp.waitFor("document.querySelector('.date-range-calendar > p')?.textContent.includes('종료 날짜')");
+  await cdp.evaluate("document.querySelectorAll('.date-range-calendar-days button:not(:disabled)')[3].click()");
+  await cdp.waitFor("document.querySelector('.date-range-calendar > p')?.textContent.includes(' ~ ')");
   await assertLayout(cdp, 'employee-leave');
   await cdp.clickByText('button', '신청 내역');
   await cdp.waitFor("document.querySelector('.employee-history-list') && new URLSearchParams(location.search).get('employeeTab') === 'history'");
@@ -87,7 +100,7 @@ try {
   await assertLayout(cdp, 'employee-hours');
 
   assert.deepEqual(cdp.consoleErrors, [], `직원 화면 브라우저 콘솔 오류: ${cdp.consoleErrors.join(' | ')}`);
-  process.stdout.write('직원 UI E2E 통과: 계정 발급, 첫 비밀번호 변경, 스케줄·휴무·내역·근무시간, 브라우저 이력, 320px 반응형\n');
+  process.stdout.write('직원 UI E2E 통과: 계정 발급, 첫 비밀번호 변경, 내·주간 스케줄, 날짜 범위 휴무·내역·근무시간, 브라우저 이력, 320px 반응형\n');
 } finally {
   socket?.close();
   const client = await pool.connect();

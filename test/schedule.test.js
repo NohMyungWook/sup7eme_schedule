@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  dateInRange,
+  leaveDateRangeConflictsShift,
   minutesWithinMonth,
   shiftDurationMinutes,
   shiftsOverlap,
@@ -28,5 +30,21 @@ test('같은 날과 익일 야간 근무의 시간 겹침을 판정한다', () =
   assert.equal(shiftsOverlap(
     { date: '2026-07-20', startTime: '08:00', endTime: '15:00' },
     { date: '2026-07-20', startTime: '15:00', endTime: '22:00' },
+  ), false);
+});
+
+test('연속 휴무 날짜 범위와 일반·야간 근무 충돌을 판정한다', () => {
+  assert.equal(dateInRange('2026-07-22', '2026-07-21', '2026-07-23'), true);
+  assert.equal(leaveDateRangeConflictsShift(
+    { startDate: '2026-07-21', endDate: '2026-07-23' },
+    { date: '2026-07-22', startTime: '08:00', endTime: '15:00' },
+  ), true);
+  assert.equal(leaveDateRangeConflictsShift(
+    { startDate: '2026-07-21', endDate: '2026-07-23' },
+    { date: '2026-07-20', startTime: '22:00', endTime: '08:00' },
+  ), true);
+  assert.equal(leaveDateRangeConflictsShift(
+    { startDate: '2026-07-21', endDate: '2026-07-23' },
+    { date: '2026-07-24', startTime: '08:00', endTime: '15:00' },
   ), false);
 });

@@ -1,4 +1,4 @@
-import { isValidDate, parseTimeToMinutes } from '../shared/schedule.js';
+import { isValidDate, parseTimeToMinutes } from '../../shared/schedule.js';
 import { ApiError } from './_db.js';
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,100}$/;

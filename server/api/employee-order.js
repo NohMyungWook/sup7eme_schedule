@@ -1,4 +1,4 @@
-import { ApiError, assertManager, isSuperAdmin, readJsonBody, requireAuth, requireMethod, requireSameOrigin, sendApiError, sendJson, withTransaction } from './_db.js';
+import { ApiError, assertManager, readJsonBody, requireAuth, requireMethod, requireSameOrigin, sendApiError, sendJson, withTransaction } from './_db.js';
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,100}$/;
 
@@ -19,8 +19,8 @@ export default async function handler(request, response) {
          from public.employees employee
          left join public.employee_stores employee_store on employee_store.employee_id = employee.id
          where employee.is_active = true and employee.id = any($1::text[])
-           and ($2::boolean or employee_store.store_id = any($3::text[]))`,
-        [employeeIds, isSuperAdmin(auth), auth.storeIds],
+           and employee_store.store_id = any($2::text[])`,
+        [employeeIds, auth.storeIds],
       );
       if (existing.rows[0].count !== employeeIds.length) {
         throw new ApiError(400, '존재하지 않거나 접근할 수 없는 직원이 정렬 목록에 포함되어 있습니다.');

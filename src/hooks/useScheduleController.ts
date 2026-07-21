@@ -88,7 +88,7 @@ export function useScheduleController() {
     setGenerationMessage('');
   }, [activeView]);
 
-  const isManager = role === 'manager' || role === 'super_admin';
+  const isManager = role === 'manager';
   const canViewDashboard = hasPermission(permissions, 'dashboard', 'view');
   const canViewSchedule = hasPermission(permissions, 'schedule', 'view');
   const canViewEmployees = hasPermission(permissions, 'employees', 'view');
@@ -109,6 +109,7 @@ export function useScheduleController() {
   const canViewAccounts = hasPermission(permissions, 'accounts', 'view');
   const canCreateAccounts = hasPermission(permissions, 'accounts', 'create');
   const canUpdateAccounts = hasPermission(permissions, 'accounts', 'update');
+  const canDeleteAccounts = hasPermission(permissions, 'accounts', 'delete');
   const canViewLeaveRequests = hasPermission(permissions, 'leaveRequests', 'view');
   const canUpdateLeaveRequests = hasPermission(permissions, 'leaveRequests', 'update');
   const visibleShifts = getStoreShifts(shifts, storeId);
@@ -466,7 +467,7 @@ export function useScheduleController() {
     canCreateEmployees, canUpdateEmployees, canDeleteEmployees,
     canCreateNotes, canUpdateNotes, canDeleteNotes,
     canCreateSettings, canUpdateSettings, canDeleteSettings,
-    canViewAccounts, canCreateAccounts, canUpdateAccounts,
+    canViewAccounts, canCreateAccounts, canUpdateAccounts, canDeleteAccounts,
     canViewLeaveRequests, canUpdateLeaveRequests,
     visibleShifts, storeEmployees,
     filteredEmployees, selectedEmployee, scheduleSelectedEmployee,

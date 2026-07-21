@@ -5,7 +5,6 @@ import {
   assertPermission,
   assertStoreAccess,
   getPool,
-  isSuperAdmin,
   readJsonBody,
   requireAuth,
   requireMethod,
@@ -41,9 +40,9 @@ export default async function handler(request, response) {
          where ($1::text is null or note.store_id = $1)
            and ($2::date is null or note.note_date >= $2)
            and ($3::date is null or note.note_date <= $3)
-           and ($4::boolean or note.store_id = any($5::text[]))
+           and note.store_id = any($4::text[])
          order by note.note_date desc, store.sort_order`,
-        [storeId, range?.startDate ?? null, range?.endDate ?? null, isSuperAdmin(auth), auth.storeIds],
+        [storeId, range?.startDate ?? null, range?.endDate ?? null, auth.storeIds],
       );
       sendJson(response, 200, { notes: result.rows.map(mapNote) });
       return;

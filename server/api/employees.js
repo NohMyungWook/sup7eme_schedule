@@ -1,12 +1,11 @@
 import crypto from 'node:crypto';
-import { shiftsOverlap } from '../shared/schedule.js';
+import { shiftsOverlap } from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,
   assertPermission,
   assertStoreAccess,
   getPool,
-  isSuperAdmin,
   permissionsForRole,
   readJsonBody,
   requireAuth,
@@ -114,19 +113,20 @@ async function fetchEmployees(auth, filters) {
         ) as base_shifts
       from public.employees employee
       left join public.app_users user_account on user_account.employee_id = employee.id
-      where ($1::boolean or employee.is_active = true)
+      where employee.deleted_at is null
+        and ($1::boolean or employee.is_active = true)
         and ($2::text is null or exists (
           select 1 from public.employee_stores filter_store
           where filter_store.employee_id = employee.id and filter_store.store_id = $2
         ))
         and ($3::text = '' or employee.name ilike '%' || $3 || '%' or employee.memo ilike '%' || $3 || '%')
-        and ($4::boolean or exists (
+        and exists (
           select 1 from public.employee_stores scoped_store
-          where scoped_store.employee_id = employee.id and scoped_store.store_id = any($5::text[])
-        ))
+          where scoped_store.employee_id = employee.id and scoped_store.store_id = any($4::text[])
+        )
       order by employee.sort_order, employee.created_at
     `,
-    [filters.includeInactive, requestedStoreId, search, isSuperAdmin(auth), auth.storeIds],
+    [filters.includeInactive, requestedStoreId, search, auth.storeIds],
   );
   return result.rows.map(mapEmployee);
 }
@@ -201,6 +201,7 @@ async function updateEmployee(auth, employee) {
         update public.employees
         set name = $2, memo = $3, color = $4
         where id = $1
+          and deleted_at is null
           and ($5::timestamptz is null
             or date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $5::timestamptz))
         returning id, name, memo, color, is_active, employment_status, created_at, updated_at
@@ -208,7 +209,7 @@ async function updateEmployee(auth, employee) {
       [id, next.name, next.preference, next.color, expectedUpdatedAt?.toISOString() ?? null],
     );
     if (!result.rows[0]) {
-      const exists = await client.query('select id from public.employees where id = $1', [id]);
+      const exists = await client.query('select id from public.employees where id = $1 and deleted_at is null', [id]);
       if (!exists.rows[0]) throw new ApiError(404, '직원을 찾을 수 없습니다.');
       throw new ApiError(409, '다른 사용자가 먼저 직원 정보를 수정했습니다. 새로고침 후 다시 시도해주세요.', 'STALE_DATA');
     }
@@ -239,10 +240,10 @@ async function handleEmployeeAction(auth, body) {
   if (body.action === 'set-status') {
     const status = String(body.status ?? '');
     if (!EMPLOYMENT_STATUSES.has(status)) throw new ApiError(400, '재직 상태가 올바르지 않습니다.');
-    if (!isSuperAdmin(auth) && status !== 'active') {
+    if (status !== 'active') {
       const currentAssociations = await fetchEmployeeAssociations(employeeId);
       if (currentAssociations.storeIds.some((storeId) => !auth.storeIds.includes(storeId))) {
-        throw new ApiError(403, '다른 담당 매장에도 소속된 직원은 최고 관리자만 비활성화할 수 있습니다.');
+        throw new ApiError(403, '담당 범위 밖 근무지에도 소속된 직원은 비활성화할 수 없습니다.');
       }
     }
     const result = await withTransaction(async (client) => {
@@ -311,16 +312,14 @@ async function handleEmployeeAction(auth, body) {
 async function normalizeEmployee(auth, employee, currentAssociations = { storeIds: [], baseShifts: [] }) {
   if (!employee || typeof employee !== 'object') throw new ApiError(400, '직원 데이터 형식이 올바르지 않습니다.');
   const requestedStoreIds = uniqueIds(employee.storeIds, '근무 가능 매장 ID');
-  const inaccessibleCurrentStoreIds = isSuperAdmin(auth)
-    ? []
-    : currentAssociations.storeIds.filter((storeId) => !auth.storeIds.includes(storeId));
+  const inaccessibleCurrentStoreIds = currentAssociations.storeIds.filter((storeId) => !auth.storeIds.includes(storeId));
   for (const storeId of requestedStoreIds) {
-    if (!isSuperAdmin(auth) && !auth.storeIds.includes(storeId) && !currentAssociations.storeIds.includes(storeId)) {
+    if (!auth.storeIds.includes(storeId) && !currentAssociations.storeIds.includes(storeId)) {
       assertStoreAccess(auth, storeId);
     }
   }
   const storeIds = [...new Set([
-    ...requestedStoreIds.filter((storeId) => isSuperAdmin(auth) || auth.storeIds.includes(storeId)),
+    ...requestedStoreIds.filter((storeId) => auth.storeIds.includes(storeId)),
     ...inaccessibleCurrentStoreIds,
   ])];
   if (!storeIds.length) throw new ApiError(400, '근무 가능 매장을 한 곳 이상 선택해주세요.');
@@ -333,12 +332,10 @@ async function normalizeEmployee(auth, employee, currentAssociations = { storeId
 
   const requestedBaseShifts = Array.isArray(employee.baseShifts) ? employee.baseShifts : [];
   const editableBaseShifts = normalizeBaseShifts(
-    requestedBaseShifts.filter((shift) => isSuperAdmin(auth) || auth.storeIds.includes(String(shift?.storeId ?? ''))),
+    requestedBaseShifts.filter((shift) => auth.storeIds.includes(String(shift?.storeId ?? ''))),
     storeIds,
   );
-  const preservedBaseShifts = isSuperAdmin(auth)
-    ? []
-    : currentAssociations.baseShifts.filter((shift) => !auth.storeIds.includes(shift.storeId));
+  const preservedBaseShifts = currentAssociations.baseShifts.filter((shift) => !auth.storeIds.includes(shift.storeId));
   const baseShifts = normalizeBaseShifts([...editableBaseShifts, ...preservedBaseShifts], storeIds);
   if (editableBaseShifts.length) {
     const templateIds = [...new Set(editableBaseShifts.map((shift) => shift.templateId))];
@@ -428,9 +425,14 @@ function normalizeBaseShifts(input, storeIds) {
 }
 
 async function assertEmployeeAccess(auth, employeeId) {
-  if (isSuperAdmin(auth)) return;
   const result = await getPool().query(
-    `select 1 from public.employee_stores where employee_id = $1 and store_id = any($2::text[]) limit 1`,
+    `select 1
+     from public.employee_stores employee_store
+     join public.employees employee on employee.id = employee_store.employee_id
+     where employee_store.employee_id = $1
+       and employee.deleted_at is null
+       and employee_store.store_id = any($2::text[])
+     limit 1`,
     [employeeId, auth.storeIds],
   );
   if (!result.rows[0]) throw new ApiError(403, '해당 직원에 접근할 권한이 없습니다.');

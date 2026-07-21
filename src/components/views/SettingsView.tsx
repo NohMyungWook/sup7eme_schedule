@@ -18,10 +18,10 @@ type SettingsViewProps = {
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
-  canManageManagers: boolean;
   canViewAccounts: boolean;
   canCreateAccounts: boolean;
   canUpdateAccounts: boolean;
+  canDeleteAccounts: boolean;
   canViewLeaveRequests: boolean;
   canUpdateLeaveRequests: boolean;
   activeSettingsPanel: SettingsPanel;
@@ -46,10 +46,10 @@ export function SettingsView({
   canCreate,
   canDelete,
   canUpdate,
-  canManageManagers,
   canViewAccounts,
   canCreateAccounts,
   canUpdateAccounts,
+  canDeleteAccounts,
   canViewLeaveRequests,
   canUpdateLeaveRequests,
   activeSettingsPanel,
@@ -100,9 +100,9 @@ export function SettingsView({
       <AccountManagementSettings
         canCreate={canCreateAccounts}
         canUpdate={canUpdateAccounts}
+        canDelete={canDeleteAccounts}
         stores={activeStores}
         employees={employees}
-        canManageManagers={canManageManagers}
         onBack={() => setActiveSettingsPanel('overview')}
       />
     );

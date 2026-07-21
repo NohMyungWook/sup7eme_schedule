@@ -5,7 +5,6 @@ import {
   assertPermission,
   assertStoreAccess,
   getPool,
-  isSuperAdmin,
   readJsonBody,
   requireAuth,
   requireMethod,
@@ -41,7 +40,6 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST') {
-      if (!isSuperAdmin(auth)) throw new ApiError(403, '근무지 추가는 최고 관리자만 처리할 수 있습니다.');
       const store = normalizeStore({ ...body.store, id: body.store?.id || crypto.randomUUID() });
       const saved = await upsertStores(auth, [store]);
       sendJson(response, 201, { store: saved[0], stores: await fetchStores(auth, false) });
@@ -76,10 +74,10 @@ async function fetchStores(auth, includeInactive) {
          where shift.store_id = store.id and shift.status = 'scheduled') as schedule_count
       from public.stores store
       where ($1::boolean or store.is_active = true)
-        and ($2::boolean or store.id = any($3::text[]))
+        and store.id = any($2::text[])
       order by store.sort_order, store.name
     `,
-    [includeInactive, isSuperAdmin(auth), auth.storeIds],
+    [includeInactive, auth.storeIds],
   );
   return result.rows.map(mapStore);
 }
@@ -88,46 +86,55 @@ async function upsertStores(auth, stores) {
   if (!stores.length) throw new ApiError(400, '저장할 근무지가 없습니다.');
   if (stores.length > 100) throw new ApiError(400, '근무지는 한 번에 최대 100개까지 저장할 수 있습니다.');
   const ids = stores.map((store) => store.id);
-  const existing = await getPool().query('select id from public.stores where id = any($1::text[])', [ids]);
-  const existingIds = new Set(existing.rows.map((row) => row.id));
-  if (!isSuperAdmin(auth) && stores.some((store) => !existingIds.has(store.id))) {
-    throw new ApiError(403, '근무지 추가는 최고 관리자만 처리할 수 있습니다.');
-  }
-  for (const store of stores) {
-    if (existingIds.has(store.id)) assertStoreAccess(auth, store.id);
-  }
-
-  const result = await getPool().query(
-    `
-      insert into public.stores (
-        id, name, address, phone, memo, is_active, color, sort_order
-      )
-      select row.id, row.name, row.address, row.phone, row.memo, row.is_active, row.color, row.sort_order
-      from jsonb_to_recordset($1::jsonb) as row(
-        id text, name text, address text, phone text, memo text,
-        is_active boolean, color text, sort_order integer
-      )
-      on conflict (id) do update
-      set name = excluded.name,
-          address = excluded.address,
-          phone = excluded.phone,
-          memo = excluded.memo,
-          is_active = excluded.is_active,
-          color = excluded.color,
-          sort_order = excluded.sort_order
-      returning id, name, address, phone, memo, is_active, color, sort_order, created_at, updated_at
-    `,
-    [JSON.stringify(stores.map((store, index) => ({
-      id: store.id,
-      name: store.name,
-      address: store.address,
-      phone: store.phone,
-      memo: store.memo,
-      is_active: store.isActive,
-      color: store.color,
-      sort_order: index + 1,
-    })))],
-  );
+  const result = await withTransaction(async (client) => {
+    const existing = await client.query('select id from public.stores where id = any($1::text[])', [ids]);
+    const existingIds = new Set(existing.rows.map((row) => row.id));
+    for (const store of stores) {
+      if (existingIds.has(store.id)) assertStoreAccess(auth, store.id);
+    }
+    const saved = await client.query(
+      `
+        insert into public.stores (
+          id, name, address, phone, memo, is_active, color, sort_order
+        )
+        select row.id, row.name, row.address, row.phone, row.memo, row.is_active, row.color, row.sort_order
+        from jsonb_to_recordset($1::jsonb) as row(
+          id text, name text, address text, phone text, memo text,
+          is_active boolean, color text, sort_order integer
+        )
+        on conflict (id) do update
+        set name = excluded.name,
+            address = excluded.address,
+            phone = excluded.phone,
+            memo = excluded.memo,
+            is_active = excluded.is_active,
+            color = excluded.color,
+            sort_order = excluded.sort_order
+        returning id, name, address, phone, memo, is_active, color, sort_order, created_at, updated_at
+      `,
+      [JSON.stringify(stores.map((store, index) => ({
+        id: store.id,
+        name: store.name,
+        address: store.address,
+        phone: store.phone,
+        memo: store.memo,
+        is_active: store.isActive,
+        color: store.color,
+        sort_order: index + 1,
+      })))],
+    );
+    const newStoreIds = stores.filter((store) => !existingIds.has(store.id)).map((store) => store.id);
+    if (newStoreIds.length) {
+      await client.query(
+        `insert into public.app_user_stores (user_id, store_id)
+         select $1::uuid, store_id from unnest($2::text[]) as store_id
+         on conflict do nothing`,
+        [auth.id, newStoreIds],
+      );
+      auth.storeIds = [...new Set([...auth.storeIds, ...newStoreIds])];
+    }
+    return saved;
+  });
   const byId = new Map(result.rows.map((row) => [row.id, mapStore(row)]));
   return stores.map((store) => byId.get(store.id));
 }
