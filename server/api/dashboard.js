@@ -1,4 +1,10 @@
-import { addDateDays, minutesWithinMonth, shiftsOverlap } from '../../shared/schedule.js';
+import {
+  addDateDays,
+  coverageGapsForDate,
+  minutesToTime,
+  minutesWithinMonth,
+  shiftsOverlap,
+} from '../../shared/schedule.js';
 import {
   ApiError,
   assertManager,
@@ -124,6 +130,19 @@ async function buildDashboard(auth, storeId, month) {
     }
   }
 
+  const coverageByDate = [];
+  for (let date = startDate; date <= endDate; date = addDateDays(date, 1)) {
+    const uncoveredRanges = coverageGapsForDate(date, shifts).map(([start, end]) => ({
+      startTime: minutesToTime(start),
+      endTime: minutesToTime(end),
+    }));
+    coverageByDate.push({
+      date,
+      isComplete: uncoveredRanges.length === 0,
+      uncoveredRanges,
+    });
+  }
+
   return {
     storeId,
     month,
@@ -134,5 +153,6 @@ async function buildDashboard(auth, storeId, month) {
     storeHours: [...storeMinutes.values()],
     gaps,
     hasCoverageRules: rulesResult.rows.length > 0,
+    coverageByDate,
   };
 }

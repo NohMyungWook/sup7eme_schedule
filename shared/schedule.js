@@ -54,6 +54,35 @@ export function shiftsOverlap(left, right) {
   return leftBounds.start < rightBounds.end && rightBounds.start < leftBounds.end;
 }
 
+export function coverageGapsForDate(date, shifts) {
+  if (!isValidDate(date) || !Array.isArray(shifts)) return [[0, 1440]];
+
+  const dayStart = dateToDayNumber(date) * 1440;
+  const dayEnd = dayStart + 1440;
+  const intervals = shifts
+    .map((shift) => shiftBounds(shift.date, shift.startTime, shift.endTime))
+    .filter(Boolean)
+    .map((bounds) => [Math.max(bounds.start, dayStart), Math.min(bounds.end, dayEnd)])
+    .filter(([start, end]) => end > start)
+    .sort((left, right) => left[0] - right[0]);
+
+  const merged = intervals.reduce((result, [start, end]) => {
+    const last = result[result.length - 1];
+    if (!last || start > last[1]) result.push([start, end]);
+    else last[1] = Math.max(last[1], end);
+    return result;
+  }, []);
+
+  const gaps = [];
+  let cursor = dayStart;
+  for (const [start, end] of merged) {
+    if (start > cursor) gaps.push([cursor - dayStart, start - dayStart]);
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < dayEnd) gaps.push([cursor - dayStart, 1440]);
+  return gaps;
+}
+
 export function dateInRange(date, startDate, endDate) {
   return isValidDate(date)
     && isValidDate(startDate)
