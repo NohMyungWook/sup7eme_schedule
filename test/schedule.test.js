@@ -1,12 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  coverageGapsForDate,
   dateInRange,
   leaveDateRangeConflictsShift,
   minutesWithinMonth,
   shiftDurationMinutes,
   shiftsOverlap,
 } from '../shared/schedule.js';
+
+test('하루 배치 공백은 야간 근무를 포함해 00:00~24:00 기준으로 계산한다', () => {
+  assert.deepEqual(coverageGapsForDate('2026-07-22', [
+    { date: '2026-07-21', startTime: '22:00', endTime: '08:00' },
+    { date: '2026-07-22', startTime: '08:00', endTime: '15:00' },
+    { date: '2026-07-22', startTime: '15:00', endTime: '22:00' },
+    { date: '2026-07-22', startTime: '22:00', endTime: '00:00' },
+  ]), []);
+  assert.deepEqual(coverageGapsForDate('2026-07-22', [
+    { date: '2026-07-22', startTime: '08:00', endTime: '15:00' },
+  ]), [[0, 480], [900, 1440]]);
+});
 
 test('야간 근무 시간을 익일 종료로 계산한다', () => {
   assert.equal(shiftDurationMinutes('22:00', '08:00'), 600);

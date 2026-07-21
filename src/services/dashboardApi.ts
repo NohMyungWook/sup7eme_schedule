@@ -10,6 +10,11 @@ export type DashboardData = {
   storeHours: Array<{ storeId: string; storeName: string; minutes: number }>;
   gaps: Array<{ date: string; startTime: string; endTime: string; required: number; assigned: number }>;
   hasCoverageRules: boolean;
+  coverageByDate: Array<{
+    date: string;
+    isComplete: boolean;
+    uncoveredRanges: Array<{ startTime: string; endTime: string }>;
+  }>;
 };
 
 export async function fetchDashboard(storeId: string, month: string) {
