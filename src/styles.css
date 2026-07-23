@@ -2866,6 +2866,15 @@ textarea:focus {
   transform: translateY(2px) rotate(225deg);
 }
 
+.custom-date-picker { position: relative; width: 100%; }
+.custom-date-picker__trigger { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d4dce8; border-radius: 8px; padding: 8px 10px; background: #fff; color: #162033; cursor: pointer; font: inherit; text-align: left; }
+.custom-date-picker__trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-date-picker__trigger > i { color: #766e84; font-size: 13px; font-style: normal; line-height: 1; }
+.custom-date-picker__trigger:hover, .custom-date-picker.is-open .custom-date-picker__trigger { border-color: #6654e8; }
+.custom-date-picker__trigger:focus-visible { outline: 0; border-color: #6654e8; box-shadow: 0 0 0 3px rgb(102 84 232 / 14%); }
+.custom-date-picker__trigger:disabled { cursor: not-allowed; background: #f5f4f8; color: #9a96a4; }
+.custom-date-picker__popover { position: absolute; z-index: 40; top: calc(100% + 7px); left: 0; width: min(360px, calc(100vw - 40px)); border-radius: 14px; background: #fff; box-shadow: 0 14px 30px rgb(50 38 78 / 16%); }
+
 .custom-dropdown__menu {
   position: absolute;
   z-index: 100;

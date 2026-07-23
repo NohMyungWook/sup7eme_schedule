@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { getStoreItemCount, getStoreName } from '../../domain/selectors';
 import type { DayNote, Store } from '../../domain/types';
 import { fullDateLabel } from '../../utils/schedule';
+import { DatePicker } from '../common/DatePicker';
 import { StoreFilter } from '../common/StoreFilter';
 import { StoreSelect } from '../common/StoreSelect';
 
@@ -60,7 +61,7 @@ export function NotesView(props: NotesViewProps) {
           <form className="memo-editor-panel" onSubmit={props.onSubmit}>
             <div><h2>{editingMemoKey ? '특이사항 수정' : '특이사항 등록'}</h2><p>같은 매장과 날짜에 등록하면 기존 메모가 갱신됩니다.</p></div>
             <label>매장<StoreSelect stores={stores} value={memoStoreId} onChange={props.onMemoStoreChange} /></label>
-            <label>날짜<input type="date" value={memoDate} onChange={(event) => props.onMemoDateChange(event.target.value)} required /></label>
+            <label>날짜<DatePicker value={memoDate} onChange={props.onMemoDateChange} ariaLabel="특이사항 날짜 선택" /></label>
             <label>특이사항<textarea value={memoText} onChange={(event) => props.onMemoTextChange(event.target.value)} placeholder="교육, 대타, 청소, 연장 등 전달할 내용을 입력하세요." rows={7} required /></label>
             <div className="form-actions"><button type="button" onClick={props.onReset} disabled={isSaving}>초기화</button><button className="primary" type="submit" disabled={!canEditForm || isSaving}>{isSaving ? '저장 중...' : editingMemoKey ? '변경 저장' : '메모 등록'}</button></div>
           </form>
