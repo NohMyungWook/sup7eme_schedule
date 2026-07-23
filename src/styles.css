@@ -3626,6 +3626,15 @@ textarea:focus {
   resize: vertical;
 }
 
+.shift-modal.is-editing {
+  width: min(400px, 100%);
+  min-height: 0;
+}
+
+.shift-modal.is-editing .shift-modal-fields {
+  grid-template-columns: 1fr;
+}
+
 .shift-picker-modal {
   display: grid;
   gap: 18px;
