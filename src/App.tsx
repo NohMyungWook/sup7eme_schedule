@@ -213,6 +213,7 @@ export default function App() {
             baseShiftDraft={app.baseShiftDraft}
             isManager={app.canCreateEmployees || app.canUpdateEmployees || app.canDeleteEmployees}
             canReorder={app.canUpdateEmployees}
+            canViewAccounts={app.canViewAccounts}
             setEmployeeDraft={app.setEmployeeDraft}
             setSelectedEmployeeDraft={app.setSelectedEmployeeDraft}
             setBaseShiftDraft={app.setBaseShiftDraft}

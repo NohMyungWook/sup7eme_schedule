@@ -2131,6 +2131,26 @@ button {
   font-size: 1.35rem;
 }
 
+.employee-management-tabs { display: flex; gap: 5px; margin-top: 12px; }
+.employee-management-tabs button { min-height: 31px; border: 1px solid #d9d4e5; border-radius: 8px; padding: 6px 10px; background: #fff; color: #777181; font: inherit; font-size: 11px; font-weight: 700; }
+.employee-management-tabs button.is-active { border-color: #7660d4; background: #f0edff; color: #5540bb; }
+.manager-directory-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.manager-directory-toolbar > label { display: grid; gap: 5px; width: min(320px, 100%); color: #6e6878; font-size: 11px; font-weight: 700; }
+.manager-directory-card .management-card-heading > span { color: #fff; }
+.manager-directory-card .management-card-heading > span.is-manager,
+.manager-directory-detail .profile-heading > span.is-manager { background: #6955cf; }
+.manager-directory-card .management-card-heading > span.is-employee,
+.manager-directory-detail .profile-heading > span.is-employee { background: #8190ad; }
+.manager-directory-card .management-card-heading em,
+.manager-directory-detail .profile-name-row em { padding: 2px 6px; border-radius: 999px; background: #efecff; color: #5d47bf; font-size: 9px; font-style: normal; font-weight: 750; }
+.manager-directory-info { margin-top: 22px; padding-top: 18px; border-top: 1px solid #eceaf1; }
+.manager-directory-info > strong { color: #34303d; font-size: 13px; }
+.manager-directory-info dl { display: grid; gap: 11px; margin: 13px 0 0; }
+.manager-directory-info dl > div { display: grid; gap: 4px; }
+.manager-directory-info dt { color: #817b8a; font-size: 11px; }
+.manager-directory-info dd { margin: 0; color: #403b49; font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.manager-directory-help { margin: 20px 0 0; padding: 10px 11px; border-radius: 9px; background: #f7f5fb; color: #756f80; font-size: 11px; line-height: 1.5; }
+
 .employee-page-header p,
 .profile-heading p {
   margin: 5px 0 0;
