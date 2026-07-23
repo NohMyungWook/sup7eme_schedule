@@ -38,8 +38,7 @@ export default async function handler(request, response) {
 
     if (request.method === 'GET') {
       assertPermission(auth, 'schedule', 'view');
-      const shifts = await fetchShifts(auth, request);
-      sendJson(response, 200, { shifts });
+      sendJson(response, 200, await fetchShifts(auth, request));
       return;
     }
 
@@ -127,7 +126,32 @@ async function fetchShifts(auth, request) {
     `,
     [startDate, endDate, storeId, employeeId, isTeamView, auth.storeIds],
   );
-  return result.rows.map(mapShift);
+  const shifts = result.rows.map(mapShift);
+  if (!isTeamView) return { shifts };
+
+  const notesResult = await getPool().query(
+    `
+      select note.id, note.store_id, store.name as store_name, note.note_date, note.text
+      from public.day_notes note
+      join public.stores store on store.id = note.store_id
+      where note.store_id = any($1::text[])
+        and note.note_date between $2 and $3
+        and note.visible_to_employees = true
+      order by note.note_date, store.sort_order
+    `,
+    [auth.storeIds, startDate, endDate],
+  );
+
+  return {
+    shifts,
+    dayNotes: notesResult.rows.map((row) => ({
+      id: row.id,
+      storeId: row.store_id,
+      storeName: row.store_name,
+      date: toDateString(row.note_date),
+      text: row.text,
+    })),
+  };
 }
 
 async function saveShift(auth, input, options) {

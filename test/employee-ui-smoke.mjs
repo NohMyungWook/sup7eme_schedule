@@ -71,12 +71,9 @@ try {
     });
     document.querySelector('.employee-profile-page form').requestSubmit();
   })()`);
-  await cdp.waitFor("document.querySelector('.employee-bottom-nav') && document.querySelector('.employee-schedule-page')");
-  await assertLayout(cdp, 'employee-schedule');
-
-  await cdp.clickByText('button', '주간 근무표');
-  await cdp.waitFor("document.querySelector('.employee-team-page') && !document.querySelector('.employee-team-page .list-skeleton') && !document.querySelector('.employee-team-page .employee-state.is-error') && new URLSearchParams(location.search).get('employeeTab') === 'team'");
-  await assertLayout(cdp, 'employee-team-schedule');
+  await cdp.waitFor("document.querySelector('.employee-bottom-nav') && document.querySelector('.employee-team-page') && !document.querySelector('.employee-team-page .list-skeleton') && !document.querySelector('.employee-team-page .employee-state.is-error') && new URLSearchParams(location.search).get('employeeTab') === 'schedule'");
+  await assertLayout(cdp, 'employee-weekly-schedule');
+  assert.equal(await cdp.evaluate("document.querySelector('.employee-weekly-heading-actions .custom-dropdown__trigger')?.disabled"), true, '근무 가능 매장이 한 곳이면 근무지 선택은 비활성화되어야 합니다.');
 
   await cdp.clickByText('button', '휴무 신청');
   await cdp.waitFor("document.querySelector('.employee-leave-page') && new URLSearchParams(location.search).get('employeeTab') === 'leave'");

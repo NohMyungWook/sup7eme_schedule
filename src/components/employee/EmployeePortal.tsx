@@ -5,11 +5,10 @@ import { EmployeeHoursPage } from './EmployeeHoursPage';
 import { EmployeeLeaveHistoryPage } from './EmployeeLeaveHistoryPage';
 import { EmployeeLeavePage } from './EmployeeLeavePage';
 import { EmployeeProfilePage } from './EmployeeProfilePage';
-import { EmployeeSchedulePage } from './EmployeeSchedulePage';
 import { EmployeeTeamSchedulePage } from './EmployeeTeamSchedulePage';
 
-type EmployeeTab = 'schedule' | 'team' | 'leave' | 'history' | 'hours' | 'profile';
-const employeeTabs: EmployeeTab[] = ['schedule', 'team', 'leave', 'history', 'hours', 'profile'];
+type EmployeeTab = 'schedule' | 'leave' | 'history' | 'hours' | 'profile';
+const employeeTabs: EmployeeTab[] = ['schedule', 'leave', 'history', 'hours', 'profile'];
 
 export function EmployeePortal({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -62,12 +61,13 @@ export function EmployeePortal({ user, onLogout }: { user: AuthUser; onLogout: (
   if (mustChangePassword) return <main className="employee-portal employee-password-gate"><EmployeeProfilePage profile={profile} onLogout={logoutEmployee} passwordChangeRequired onPasswordChanged={() => setMustChangePassword(false)} /></main>;
 
   const tabs: Array<{ id: EmployeeTab; label: string; icon: string }> = [
-    { id: 'schedule', label: '내 스케줄', icon: '▣' }, { id: 'team', label: '주간 근무표', icon: '▦' }, { id: 'leave', label: '휴무 신청', icon: '+' }, { id: 'history', label: '신청 내역', icon: '✓' }, { id: 'hours', label: '근무시간', icon: '◷' }, { id: 'profile', label: '내 정보', icon: '○' },
+    { id: 'schedule', label: '주간 근무표', icon: '▦' }, { id: 'leave', label: '휴무 신청', icon: '+' }, { id: 'history', label: '신청 내역', icon: '✓' }, { id: 'hours', label: '근무시간', icon: '◷' }, { id: 'profile', label: '내 정보', icon: '○' },
   ];
-  return <main className="employee-portal"><header className="employee-topbar"><div><span className="brand-mark">S</span><strong>KingMW</strong></div><button type="button" onClick={() => setActiveTab('profile')}><span style={{ background: profile.color }}>{profile.name.slice(0, 1)}</span>{profile.name}</button></header><div className="employee-content">{activeTab === 'schedule' ? <EmployeeSchedulePage /> : activeTab === 'team' ? <EmployeeTeamSchedulePage employeeId={profile.id} /> : activeTab === 'leave' ? <EmployeeLeavePage stores={profile.stores} editingRequest={editingRequest} onCancelEdit={() => setEditingRequest(null)} onSaved={() => { setEditingRequest(null); setRefreshKey((value) => value + 1); }} /> : activeTab === 'history' ? <EmployeeLeaveHistoryPage refreshKey={refreshKey} onEdit={(request) => { setEditingRequest(request); setActiveTab('leave'); }} /> : activeTab === 'hours' ? <EmployeeHoursPage /> : <EmployeeProfilePage profile={profile} onLogout={logoutEmployee} />}</div><nav className="employee-bottom-nav" aria-label="직원 메뉴">{tabs.map((tab) => <button type="button" className={activeTab === tab.id ? 'is-active' : undefined} key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'leave') setEditingRequest(null); }}><i>{tab.icon}</i><span>{tab.label}</span></button>)}</nav></main>;
+  return <main className="employee-portal"><header className="employee-topbar"><div><span className="brand-mark">S</span><strong>KingMW</strong></div><button type="button" onClick={() => setActiveTab('profile')}><span style={{ background: profile.color }}>{profile.name.slice(0, 1)}</span>{profile.name}</button></header><div className="employee-content">{activeTab === 'schedule' ? <EmployeeTeamSchedulePage employeeId={profile.id} stores={profile.stores} /> : activeTab === 'leave' ? <EmployeeLeavePage stores={profile.stores} editingRequest={editingRequest} onCancelEdit={() => setEditingRequest(null)} onSaved={() => { setEditingRequest(null); setRefreshKey((value) => value + 1); }} /> : activeTab === 'history' ? <EmployeeLeaveHistoryPage refreshKey={refreshKey} onEdit={(request) => { setEditingRequest(request); setActiveTab('leave'); }} /> : activeTab === 'hours' ? <EmployeeHoursPage /> : <EmployeeProfilePage profile={profile} onLogout={logoutEmployee} />}</div><nav className="employee-bottom-nav" aria-label="직원 메뉴">{tabs.map((tab) => <button type="button" className={activeTab === tab.id ? 'is-active' : undefined} key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'leave') setEditingRequest(null); }}><i>{tab.icon}</i><span>{tab.label}</span></button>)}</nav></main>;
 }
 
 function readEmployeeTab(): EmployeeTab {
   const tab = new URLSearchParams(window.location.search).get('employeeTab');
+  if (tab === 'team') return 'schedule';
   return employeeTabs.includes(tab as EmployeeTab) ? tab as EmployeeTab : 'schedule';
 }

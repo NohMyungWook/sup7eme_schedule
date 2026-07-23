@@ -20,6 +20,14 @@ export type MonthlyHours = {
   byWeek: Array<{ week: number; minutes: number }>;
 };
 
+export type EmployeeDayNote = {
+  id: string;
+  storeId: string;
+  storeName: string;
+  date: string;
+  text: string;
+};
+
 export async function fetchEmployeeProfile() {
   const payload = await apiRequest<{ profile: EmployeeProfile }>('/api/me?resource=profile', { errorMessage: '내 정보를 불러오지 못했습니다.' });
   return payload.profile;
@@ -31,10 +39,11 @@ export async function fetchMyShifts(startDate: string, endDate: string) {
   return payload.shifts ?? [];
 }
 
-export async function fetchTeamShifts(startDate: string, endDate: string) {
+export async function fetchTeamShifts(startDate: string, endDate: string, storeId?: string) {
   const query = new URLSearchParams({ startDate, endDate, scope: 'team' });
-  const payload = await apiRequest<{ shifts: Shift[] }>(`/api/shifts?${query}`, { errorMessage: '주간 근무표를 불러오지 못했습니다.' });
-  return payload.shifts ?? [];
+  if (storeId) query.set('storeId', storeId);
+  const payload = await apiRequest<{ shifts: Shift[]; dayNotes?: EmployeeDayNote[] }>(`/api/shifts?${query}`, { errorMessage: '주간 근무표를 불러오지 못했습니다.' });
+  return { shifts: payload.shifts ?? [], dayNotes: payload.dayNotes ?? [] };
 }
 
 export async function fetchMonthlyHours(month: string) {
