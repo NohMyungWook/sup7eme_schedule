@@ -219,6 +219,7 @@ try {
   assert.ok(visibleTeamShift);
   assert.equal(visibleTeamShift.note, '');
   assert.ok(teamShifts.data.shifts.every((shift) => shift.leaveConflictStatus === null));
+  assert.ok(Array.isArray(teamShifts.data.dayNotes));
 
   const leaveCreate = await api('/api/leave-requests', {
     method: 'POST', cookie: employeeCookie, expectedStatus: 201,

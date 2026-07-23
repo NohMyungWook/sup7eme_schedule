@@ -12,6 +12,7 @@ import { Dropdown } from '../common/Dropdown';
 import { EmployeeBaseShiftSection } from './EmployeeBaseShiftSection';
 import { EmployeeCardList } from './EmployeeCardList';
 import { profileColorOptions } from './employeeViewModel';
+import { ManagerDirectory } from './ManagerDirectory';
 
 type EmployeesViewProps = {
   employees: Employee[];
@@ -30,6 +31,7 @@ type EmployeesViewProps = {
   baseShiftDraft: BaseShiftDraft;
   isManager: boolean;
   canReorder: boolean;
+  canViewAccounts: boolean;
   setEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>>;
   setSelectedEmployeeDraft: Dispatch<SetStateAction<EmployeeDraft>>;
   setBaseShiftDraft: Dispatch<SetStateAction<BaseShiftDraft>>;
@@ -62,6 +64,7 @@ export function EmployeesView(props: EmployeesViewProps) {
   const [orderedEmployees, setOrderedEmployees] = useState(props.filteredEmployees);
   const [isOrderSaving, setIsOrderSaving] = useState(false);
   const [orderError, setOrderError] = useState('');
+  const [activeTab, setActiveTab] = useState<'employees' | 'managers'>('employees');
   const isAddingEmployee = props.showForm;
   const activeEmployeeDraft = isAddingEmployee ? employeeDraft : selectedEmployeeDraft;
   const setActiveEmployeeDraft = isAddingEmployee ? props.setEmployeeDraft : props.setSelectedEmployeeDraft;
@@ -105,12 +108,13 @@ export function EmployeesView(props: EmployeesViewProps) {
   return (
     <>
       <header className="employee-page-header">
-        <div><h1>직원 관리</h1><p>직원 정보와 매장별 기본 근무 요일·시간을 관리합니다.</p></div>
-        <div className="employee-page-actions">
+        <div><h1>직원 관리</h1><p>{activeTab === 'employees' ? '직원 정보와 매장별 기본 근무 요일·시간을 관리합니다.' : '매니저와 직원 계정, 역할별 접근 권한을 관리합니다.'}</p><div className="employee-management-tabs" role="tablist" aria-label="직원 관리 구분"><button type="button" role="tab" aria-selected={activeTab === 'employees'} className={activeTab === 'employees' ? 'is-active' : undefined} onClick={() => setActiveTab('employees')}>일반 직원</button>{props.canViewAccounts ? <button type="button" role="tab" aria-selected={activeTab === 'managers'} className={activeTab === 'managers' ? 'is-active' : undefined} onClick={() => setActiveTab('managers')}>매니저</button> : null}</div></div>
+        {activeTab === 'employees' ? <div className="employee-page-actions">
           {props.canReorder ? <button className={`employee-reorder-button ${isReorderMode ? 'is-active' : ''}`} type="button" onClick={() => void toggleReorderMode()} disabled={isOrderSaving}><span aria-hidden="true">↕</span>{isOrderSaving ? '저장 중...' : isReorderMode ? '완료' : '위치 변경'}</button> : null}
           <button className="primary employee-add-button" type="button" onClick={props.onAddOpen}>+ 직원 추가</button>
-        </div>
+        </div> : null}
       </header>
+      {activeTab === 'managers' ? <ManagerDirectory stores={stores} /> : <>
       {orderError ? <p className="employee-order-error">{orderError}</p> : null}
       <StoreFilter
         activeStoreId={props.storeFilter}
@@ -187,6 +191,7 @@ export function EmployeesView(props: EmployeesViewProps) {
           </aside>
         ) : null}
       </div>
+      </>}
     </>
   );
 }
